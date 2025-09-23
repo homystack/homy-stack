@@ -7,8 +7,8 @@ metadata:
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: ingress-nginx
-  namespace: homestack-ingress-nginx
+  name: local-path
+  namespace: homestack-local-path
 spec:
   chart:
     spec:
