@@ -10,7 +10,7 @@ kind: Kustomization
 # ────────────────────────────────────────────────────────
 
 resources:
-  - ../../profiles/full.yaml
+  - ../../profiles/full
   # - ../../profiles/media.yaml
   # - ../../profiles/nas.yaml
   # - ../../profiles/all.yaml
