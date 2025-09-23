@@ -1,0 +1,10 @@
+# clusters/default/kustomization.yaml
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../components/backup
+  - ../components/ingress
+  - ../components/storage
+  - ../components/ui
