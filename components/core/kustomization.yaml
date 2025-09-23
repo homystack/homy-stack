@@ -8,3 +8,4 @@ resources:
   - ./ingress
   - ./storage
   - ./ui
+  - ./metallb
