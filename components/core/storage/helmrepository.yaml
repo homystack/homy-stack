@@ -1,8 +1,7 @@
-# clusters/default/flux-system/ingress-nginx-repo.yaml
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 metadata:
-  name: local-path-provisioner
+  name: homestack-local-path
   namespace: flux-system
 spec:
   interval: 1h
