@@ -9,4 +9,4 @@ resources:
   - ./storage
   - ./ui
   - ./metallb
-  - ./kro
+  - ./crossplane

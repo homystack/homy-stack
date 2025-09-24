@@ -1,22 +1,22 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: homestack-kro
+  name: crossplane-system
 
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: homestack-kro
-  namespace: homestack-kro
+  name: crossplane
+  namespace: crossplane-system
 spec:
   chart:
     spec:
-      chart: kro
-      version: "0.4.1"
+      chart: crossplane
+      version: "2.0"
       sourceRef:
         kind: HelmRepository
-        name: kro
+        name: ingress-nginx
         namespace: flux-system
   interval: 10m
   install:
