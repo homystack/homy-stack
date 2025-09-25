@@ -1,0 +1,59 @@
+apiVersion: apps.homystack.com/v1alpha1
+kind: VaultWarden
+metadata:
+  name: my-vaultwarden
+  namespace: default
+spec:
+  # === Persistence (обязательно для SQLite!) ===
+  persistence:
+    enabled: true
+    size: "5Gi"
+    storageClass: "local-path"  # или "gp2", "ceph", и т.д.
+
+  # === Database: SQLite (по умолчанию) ===
+  database:
+    type: "sqlite"
+    # url и existingSecret не нужны — Vaultwarden использует /data/db.sqlite
+
+  # === Ingress ===
+  ingress:
+    enabled: true
+    host: "vaultwarden.example.com"
+    className: "nginx"
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    tlsSecretName: "vaultwarden-tls"
+
+  # === TLS (cert-manager) ===
+  tls:
+    issuerRef:
+      name: "letsencrypt-prod"
+      kind: "ClusterIssuer"
+
+  # === Backup (K8up → S3) ===
+  # backup:
+  #   schedule: "0 2 * * *"  # каждый день в 2:00 UTC
+  #   retention: "7d"
+  #   backend: "s3"
+  #   s3:
+  #     endpoint: "https://s3.eu-west-1.amazonaws.com"
+  #     bucket: "my-backups-vaultwarden"
+  #     region: "eu-west-1"
+  #     accessKeySecret: "vaultwarden-s3-accesskey"
+  #     secretKeySecret: "vaultwarden-s3-secretkey"
+
+  # === App Config ===
+  config:
+    domain: "https://vaultwarden.example.com"
+    allowSignups: true
+    verifySignup: false
+    enableWebVault: true
+    adminTokenSecret: "vaultwarden-admin-token"
+    smtp:
+      enabled: true
+      host: "smtp.gmail.com"
+      port: 587
+      from: "vaultwarden@example.com"
+      user: "vaultwarden@example.com"
+      passwordSecret: "vaultwarden-smtp-password"
+      security: "starttls"

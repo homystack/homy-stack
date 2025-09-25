@@ -1,0 +1,153 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: vaultwardens.apps.homystack.com
+spec:
+  group: apps.homystack.com
+  names:
+    kind: VaultWarden
+    plural: vaultwardens
+    singular: vaultwarden
+  scope: Namespaced # ← namespace-scoped
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                # === Persistence ===
+                persistence:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: false
+                    size:
+                      type: string
+                      default: "1Gi"
+                    storageClass:
+                      type: string
+                      nullable: true
+                  required: [enabled]
+                database:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                      enum: ["sqlite", "mysql", "postgresql"]
+                      default: sqlite
+                    url:
+                      type: string
+                      nullable: true
+                    existingSecret:
+                      type: string
+                      nullable: true
+                ingress:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: false
+                    host:
+                      type: string
+                      nullable: true
+                    className:
+                      type: string
+                      default: nginx
+                    annotations:
+                      type: object
+                      additionalProperties:
+                        type: string
+                      default: {}
+                    tlsSecretName:
+                      type: string
+                      nullable: true
+                tls:
+                  type: object
+                  properties:
+                    issuerRef:
+                      type: object
+                      required: [name, kind]
+                      properties:
+                        name:
+                          type: string
+                        kind:
+                          type: string
+                        group:
+                          type: string
+                          default: cert-manager.io
+                backup:
+                  type: object
+                  properties:
+                    schedule:
+                      type: string
+                      default: "0 2 * * *"
+                    retention:
+                      type: string
+                      default: "7d"
+                    backend:
+                      type: string
+                      enum: [s3, gcs, azure, volume]
+                      default: s3
+                    s3:
+                      type: object
+                      properties:
+                        endpoint:
+                          type: string
+                        bucket:
+                          type: string
+                        region:
+                          type: string
+                        accessKeySecret:
+                          type: string
+                        secretKeySecret:
+                          type: string
+                config:
+                  type: object
+                  properties:
+                    domain:
+                      type: string
+                      nullable: true
+                    allowSignups:
+                      type: boolean
+                      default: true
+                    verifySignup:
+                      type: boolean
+                      default: false
+                    enableWebVault:
+                      type: boolean
+                      default: true
+                    adminTokenSecret:
+                      type: string
+                      nullable: true
+                    smtp:
+                      type: object
+                      properties:
+                        enabled:
+                          type: boolean
+                          default: false
+                        host:
+                          type: string
+                          nullable: true
+                        port:
+                          type: integer
+                          nullable: true
+                        from:
+                          type: string
+                          nullable: true
+                        user:
+                          type: string
+                          nullable: true
+                        passwordSecret:
+                          type: string
+                          nullable: true
+                        security:
+                          type: string
+                          enum: [starttls, force_tls, off]
+                          default: starttls
+                  required: []

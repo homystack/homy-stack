@@ -10,3 +10,4 @@ resources:
   - ./ui
   - ./metallb
   - ./crossplane
+  - ./cert-manager
