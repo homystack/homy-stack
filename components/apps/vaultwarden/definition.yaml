@@ -13,6 +13,16 @@ spec:
     - name: v1alpha1
       served: true
       referenceable: true
+       # 👇 Вот сюда добавляем кастомные столбцы
+      additionalPrinterColumns:
+        - name: URL
+          type: string
+          jsonPath: .status.url
+          description: "Vaultwarden access URL"
+        - name: LASTBACKUP 
+          type: date
+          jsonPath: .status.lastBackupTime
+          description: "Timestamp of last successful backup"
       schema:
         openAPIV3Schema:
           type: object
@@ -151,3 +161,14 @@ spec:
                           enum: [starttls, force_tls, off]
                           default: starttls
                   required: []
+            status:
+              type: object
+              properties:
+                url:
+                  type: string
+                lastBackupTime:
+                  type: string
+                  format: date-time
+                ready:
+                  type: boolean
+            

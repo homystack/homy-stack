@@ -1,0 +1,8 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: eriane
+  namespace: flux-system
+spec:
+  interval: 120m
+  url:  https://ebrianne.github.io/helm-charts

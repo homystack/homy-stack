@@ -1,7 +1,7 @@
 apiVersion: apps.homystack.com/v1alpha1
 kind: VaultWarden
 metadata:
-  name: my-vaultwarden
+  name: my-vault
   namespace: default
 spec:
   # === Persistence (обязательно для SQLite!) ===
@@ -20,15 +20,15 @@ spec:
     enabled: true
     host: "vaultwarden.example.com"
     className: "nginx"
-    annotations:
-      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # annotations:
+    #   nginx.ingress.kubernetes.io/ssl-redirect: "true"
     tlsSecretName: "vaultwarden-tls"
 
   # === TLS (cert-manager) ===
-  tls:
-    issuerRef:
-      name: "letsencrypt-prod"
-      kind: "ClusterIssuer"
+  # tls:
+  #   issuerRef:
+  #     name: "letsencrypt-prod"
+  #     kind: "ClusterIssuer"
 
   # === Backup (K8up → S3) ===
   # backup:

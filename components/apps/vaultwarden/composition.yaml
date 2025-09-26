@@ -23,7 +23,6 @@ spec:
               {{- $name := .observed.composite.resource.metadata.name -}}
               {{- $namespace := .observed.composite.resource.metadata.namespace -}}
               {{- $spec := .observed.composite.resource.spec -}}
-
               # === HelmRelease ===
               ---
               apiVersion: helm.toolkit.fluxcd.io/v2
@@ -179,6 +178,39 @@ spec:
                   labels:
                     app.kubernetes.io/instance: {{ $name }}
               {{- end }}
+              
     - step: automatically-detect-ready-composed-resources
       functionRef:
         name: crossplane-contrib-function-auto-ready 
+
+
+
+    - step: set-status-url
+      functionRef:
+        name: crossplane-contrib-function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline: 
+          template: |
+              {{- if .observed.composite.resource.spec.ingress }}
+                {{- if .observed.resources }}
+                  {{- $key := printf "helmrelease-%s" .observed.composite.resource.metadata.name -}}
+                  {{- $hr := index .observed.resources $key | default nil -}}
+                  {{- if $hr }}
+                    {{- $ready := ($hr | getResourceCondition "Ready").Status | default "False" -}}
+                    {{- if eq $ready "True" }}
+                      {{- $protocol := "http" -}}
+                      {{- if and (.observed.composite.resource.spec.tls) (ne (len .observed.composite.resource.spec.tls) 0) -}}
+                        {{- $protocol = "https" -}}
+                      {{- end -}}
+              ---
+              apiVersion: apps.homystack.com/v1alpha1
+              kind: VaultWarden
+              status:
+                url: {{ quote (printf "%s://%s" $protocol .observed.composite.resource.spec.ingress.host) }}
+                    {{- end }}
+                  {{- end }}
+                {{- end }}
+              {{- end }}
