@@ -8,12 +8,11 @@ spec:
     kind: VaultWarden
     plural: vaultwardens
     singular: vaultwarden
-  scope: Namespaced # ← namespace-scoped
+  scope: Namespaced
   versions:
     - name: v1alpha1
       served: true
       referenceable: true
-       # 👇 Вот сюда добавляем кастомные столбцы
       additionalPrinterColumns:
         - name: URL
           type: string
@@ -26,149 +25,198 @@ spec:
       schema:
         openAPIV3Schema:
           type: object
+          description: "VaultWarden is a Crossplane Composite Resource that deploys and manages a Vaultwarden (Bitwarden-compatible) password manager instance."
           properties:
             spec:
               type: object
+              description: "Specification of the desired behavior of the VaultWarden instance."
               properties:
                 # === Persistence ===
                 persistence:
                   type: object
+                  description: "Configuration for persistent storage of Vaultwarden data (e.g., attachments, icons)."
                   properties:
                     enabled:
                       type: boolean
                       default: false
+                      description: "Whether to enable persistent volume for Vaultwarden data."
                     size:
                       type: string
                       default: "1Gi"
+                      description: "Size of the persistent volume claim (e.g., '10Gi')."
                     storageClass:
                       type: string
                       nullable: true
+                      description: "StorageClass to use for the persistent volume. If not set, the default StorageClass is used."
                   required: [enabled]
                 database:
                   type: object
+                  description: "Database configuration for Vaultwarden. Supports SQLite (default), MySQL, or PostgreSQL."
                   properties:
                     type:
                       type: string
                       enum: ["sqlite", "mysql", "postgresql"]
                       default: sqlite
+                      description: "Type of database to use. SQLite stores data in a file (requires persistence), while MySQL/PostgreSQL use external databases."
                     url:
                       type: string
                       nullable: true
+                      description: "Database connection URL (e.g., for MySQL or PostgreSQL). Required if type is not 'sqlite'."
                     existingSecret:
                       type: string
                       nullable: true
+                      description: "Name of an existing Kubernetes Secret containing database credentials (e.g., username, password)."
                 ingress:
                   type: object
+                  description: "Ingress configuration to expose Vaultwarden externally via HTTP(S)."
                   properties:
                     enabled:
                       type: boolean
                       default: false
+                      description: "Whether to create an Ingress resource for Vaultwarden."
                     host:
                       type: string
                       nullable: true
+                      description: "Hostname for the Ingress (e.g., 'vaultwarden.example.com'). Required if ingress is enabled."
                     className:
                       type: string
                       default: nginx
+                      description: "Ingress class name (e.g., 'nginx', 'traefik')."
+                      example: nginx
                     annotations:
                       type: object
                       additionalProperties:
                         type: string
                       default: {}
+                      description: "Custom annotations to apply to the Ingress resource (e.g., for cert-manager or proxy settings)."
                     tlsSecretName:
                       type: string
                       nullable: true
+                      description: "Name of a pre-existing TLS Secret for HTTPS. If not provided, TLS may be handled by cert-manager via the 'tls' section."
                 tls:
                   type: object
+                  description: "TLS certificate configuration using cert-manager."
                   properties:
                     issuerRef:
                       type: object
                       required: [name, kind]
+                      description: "Reference to a cert-manager Issuer or ClusterIssuer to automatically provision a TLS certificate."
                       properties:
                         name:
                           type: string
+                          description: "Name of the cert-manager Issuer or ClusterIssuer."
                         kind:
                           type: string
+                          description: "Kind of the issuer (e.g., 'Issuer' or 'ClusterIssuer')."
                         group:
                           type: string
                           default: cert-manager.io
+                          description: "API group of the issuer (usually 'cert-manager.io')."
                 backup:
                   type: object
+                  description: "Backup configuration for Vaultwarden data using Velero or similar backup solutions."
                   properties:
                     schedule:
                       type: string
                       default: "0 2 * * *"
+                      description: "Cron expression defining when backups should run (e.g., '0 2 * * *' for daily at 2 AM UTC)."
                     retention:
                       type: string
                       default: "7d"
+                      description: "Retention policy for backups (e.g., '7d' for 7 days, '4w' for 4 weeks)."
                     backend:
                       type: string
                       enum: [s3, gcs, azure, volume]
                       default: s3
+                      description: "Backup storage backend type."
                     s3:
                       type: object
+                      description: "S3-compatible storage configuration for backups (required if backend is 's3')."
                       properties:
                         endpoint:
                           type: string
+                          description: "S3 service endpoint (e.g., 'https://s3.amazonaws.com' or a MinIO URL)."
                         bucket:
                           type: string
+                          description: "Name of the S3 bucket to store backups."
                         region:
                           type: string
+                          description: "AWS region of the S3 bucket (if applicable)."
                         accessKeySecret:
                           type: string
+                          description: "Name of a Kubernetes Secret containing the S3 access key (key: 'accesskey')."
                         secretKeySecret:
                           type: string
+                          description: "Name of a Kubernetes Secret containing the S3 secret key (key: 'secretkey')."
                 config:
                   type: object
+                  description: "Runtime configuration for Vaultwarden via environment variables."
                   properties:
                     domain:
                       type: string
                       nullable: true
+                      description: "Base domain for Vaultwarden (e.g., 'https://vaultwarden.example.com'). Used for email links and API URLs."
                     allowSignups:
                       type: boolean
                       default: true
+                      description: "Whether to allow new user registrations."
                     verifySignup:
                       type: boolean
                       default: false
+                      description: "Whether to require email verification for new signups (requires SMTP configuration)."
                     enableWebVault:
                       type: boolean
                       default: true
+                      description: "Whether to enable the built-in web vault interface."
                     adminTokenSecret:
                       type: string
                       nullable: true
+                      description: "Name of a Kubernetes Secret containing the admin token (key: 'token') for the Vaultwarden admin panel."
                     smtp:
                       type: object
+                      description: "SMTP configuration for sending emails (e.g., for invitations, password resets)."
                       properties:
                         enabled:
                           type: boolean
                           default: false
+                          description: "Whether to enable SMTP email delivery."
                         host:
                           type: string
                           nullable: true
+                          description: "SMTP server hostname or IP address."
                         port:
                           type: integer
                           nullable: true
+                          description: "SMTP server port (e.g., 587 for STARTTLS, 465 for SSL)."
                         from:
                           type: string
                           nullable: true
+                          description: "Email address to send from (e.g., 'vaultwarden@example.com')."
                         user:
                           type: string
                           nullable: true
+                          description: "SMTP username for authentication."
                         passwordSecret:
                           type: string
                           nullable: true
+                          description: "Name of a Kubernetes Secret containing the SMTP password (key: 'password')."
                         security:
                           type: string
                           enum: [starttls, force_tls, off]
                           default: starttls
+                          description: "SMTP connection security mode: 'starttls' (upgrade to TLS), 'force_tls' (connect over TLS), or 'off' (plaintext)."
                   required: []
             status:
               type: object
+              description: "Current observed state of the VaultWarden instance."
               properties:
                 url:
                   type: string
+                  description: "Publicly accessible URL of the Vaultwarden instance (populated when Ingress is ready)."
                 lastBackupTime:
                   type: string
                   format: date-time
+                  description: "ISO 8601 timestamp of the most recent successful backup."
                 ready:
                   type: boolean
-            
+                  description: "Indicates whether the VaultWarden deployment and all dependencies are ready and healthy."

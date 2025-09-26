@@ -30,7 +30,7 @@ spec:
             labels:
               app: {{ $name }}-backupserver-sts
           spec:
-            serviceName: {{ $name }}
+            serviceName: {{ $name }}-backupserver-svc
             replicas: 1
             selector:
               matchLabels:
