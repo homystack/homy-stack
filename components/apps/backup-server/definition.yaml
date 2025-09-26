@@ -1,0 +1,159 @@
+# xrestserver.xrd.yaml
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: backupservers.apps.homystack.com
+spec:
+  group: apps.homystack.com
+  names:
+    kind: BackupServer
+    plural: backupservers
+    singular: backupserver
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      additionalPrinterColumns:
+        - name: URL
+          type: string
+          jsonPath: .status.url
+          description: "Public URL or service endpoint"
+        - name: LB_IP
+          type: string
+          jsonPath: .status.loadBalancerIP
+          description: "IP address of service (if LoadBalancer used)"
+        - name: DISK
+          type: string
+          jsonPath: .spec.persistence.size
+          description: "Requested persistent disk size"
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                # === Container Image ===
+                image:
+                  type: string
+                  description: "Container image for the REST server"
+                  example: "restic/rest-server:0.14.0"
+                  default: "restic/rest-server:0.14.0"
+
+                # === Persistence ===
+                persistence:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: true
+                    size:
+                      type: string
+                      default: "10Gi"
+                      pattern: ^([0-9]+)([EPTGMK]i?)$
+                      description: "Storage size (e.g., 10Gi, 100Gi)"
+                    storageClass:
+                      type: string
+                      nullable: true
+                  required:
+                    - enabled
+
+                # === Compute Resources ===
+                resources:
+                  type: object
+                  properties:
+                    requests:
+                      type: object
+                      properties:
+                        memory:
+                          type: string
+                          default: "512Mi"
+                        cpu:
+                          type: string
+                          default: "200m"
+                      required: ["memory", "cpu"]
+                    limits:
+                      type: object
+                      properties:
+                        memory:
+                          type: string
+                          default: "1Gi"
+                        cpu:
+                          type: string
+                          default: "500m"
+                      required: ["memory", "cpu"]
+                  required: ["requests", "limits"]
+
+                # === Node Placement ===
+                nodeSelector:
+                  type: object
+                  additionalProperties:
+                    type: string
+                  nullable: true
+                  description: "Node selector for pod scheduling"
+
+                # === Service Exposure ===
+                service:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                      enum: ["ClusterIP", "LoadBalancer", "NodePort"]
+                      default: "ClusterIP"
+                  required: ["type"]
+
+                # === Ingress ===
+                ingress:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: false
+                    host:
+                      type: string
+                      nullable: true
+                      description: "Hostname for ingress (e.g., api.example.com)"
+                    className:
+                      type: string
+                      default: "nginx"
+                    annotations:
+                      type: object
+                      additionalProperties:
+                        type: string
+                      default: {}
+                    tlsSecretName:
+                      type: string
+                      nullable: true
+                      description: "Name of existing TLS secret"
+                  required: ["enabled"]
+
+                # === Application Configuration ===
+                config:
+                  type: object
+                  properties:
+                    disableAuthentication:
+                      type: boolean
+                      default: true
+                      description: "⚠️ Only for dev! Disables auth if true"
+                    options:
+                      type: string
+                      default: "--prometheus"
+                      description: "Extra CLI flags for the server"
+                  required: []
+
+              required:
+                - image
+                - persistence
+                - resources
+                - service
+
+            status:
+              type: object
+              properties:
+                url:
+                  type: string
+                  description: "Publicly accessible URL (if ingress used)"
+                loadBalancerIP:
+                  type: string
+                  description: "IP address of service (if LoadBalancer used)"
