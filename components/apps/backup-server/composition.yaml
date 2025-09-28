@@ -13,183 +13,181 @@ spec:
   pipeline:
     - step: render-kubernetes-resources
       functionRef:
-        name: function-go-templating
+        name: crossplane-contrib-function-go-templating 
       input:
         apiVersion: gotemplating.fn.crossplane.io/v1beta1
         kind: GoTemplate
-        source: |
-          {{- $spec := .observed.composite.spec -}}
-          {{- $name := .observed.composite.metadata.name -}}
-          {{- $namespace := .observed.composite.metadata.namespace -}}
-          ---
-          apiVersion: apps/v1
-          kind: StatefulSet
-          metadata:
-            name: {{ $name }}-backupserver-sts
-            namespace: {{ $namespace | quote }}
-            labels:
-              app: {{ $name }}-backupserver-sts
-          spec:
-            serviceName: {{ $name }}-backupserver-svc
-            replicas: 1
-            selector:
-              matchLabels:
+        source: Inline
+        inline:
+          template: |
+            {{- $spec := .observed.composite.resource.spec -}}
+            {{- $name := .observed.composite.resource.metadata.name -}}
+            {{- $namespace := .observed.composite.resource.metadata.namespace -}}
+            ---
+            apiVersion: apps/v1
+            kind: StatefulSet
+            metadata:
+              name: {{ $name }}-backupserver-sts
+              namespace: {{ $namespace | quote }}
+              annotations:
+                gotemplating.fn.crossplane.io/ready: "True"
+                gotemplating.fn.crossplane.io/composition-resource-name: {{ $name }}-backupserver-sts
+              labels:
                 app: {{ $name }}-backupserver-sts
-            template:
-              meta
-                labels:
+            spec:
+              serviceName: {{ $name }}-backupserver-svc
+              replicas: 1
+              selector:
+                matchLabels:
                   app: {{ $name }}-backupserver-sts
-              spec:
-                {{- if $spec.nodeSelector }}
-                nodeSelector:
-                  {{- range $k, $v := $spec.nodeSelector }}
-                  {{ $k }}: {{ $v | quote }}
+              template:
+                metadata:
+                  labels:
+                    app: {{ $name }}-backupserver-sts
+                spec:
+                  {{- if $spec.nodeSelector }}
+                  nodeSelector:
+                    {{- range $k, $v := $spec.nodeSelector }}
+                    {{ $k }}: {{ $v | quote }}
+                    {{- end }}
                   {{- end }}
-                {{- end }}
-                containers:
-                  - name: backupserver
-                    image: {{ $spec.image | quote }}
-                    imagePullPolicy: IfNotPresent
-                    ports:
-                      - containerPort: 8000
-                        name: http
-                    env:
-                      - name: DISABLE_AUTHENTICATION
-                        value: {{ printf "%t" $spec.config.disableAuthentication | quote }}
-                      - name: OPTIONS
-                        value: {{ $spec.config.options | quote }}
-                    volumeMounts:
-                      - name: data
-                        mountPath: /data
+                  containers:
+                    - name: backupserver
+                      image: {{ $spec.image | quote }}
+                      imagePullPolicy: IfNotPresent
+                      ports:
+                        - containerPort: 8000
+                          name: http
+                      env:
+                        - name: DISABLE_AUTHENTICATION
+                          value: {{ printf "%t" $spec.config.disableAuthentication | quote }}
+                        - name: OPTIONS
+                          value: {{ $spec.config.options | quote }}
+                      volumeMounts:
+                        - name: data
+                          mountPath: /data
+                      resources:
+                        requests:
+                          memory: {{ $spec.resources.requests.memory | quote }}
+                          cpu: {{ $spec.resources.requests.cpu | quote }}
+                        limits:
+                          memory: {{ $spec.resources.limits.memory | quote }}
+                          cpu: {{ $spec.resources.limits.cpu | quote }}
+              volumeClaimTemplates:
+                - metadata:
+                    name: data
+                  spec:
+                    accessModes: ["ReadWriteOnce"]
+                    {{- if $spec.persistence.storageClass }}
+                    storageClassName: {{ $spec.persistence.storageClass | quote }}
+                    {{- end }}
                     resources:
                       requests:
-                        memory: {{ $spec.resources.requests.memory | quote }}
-                        cpu: {{ $spec.resources.requests.cpu | quote }}
-                      limits:
-                        memory: {{ $spec.resources.limits.memory | quote }}
-                        cpu: {{ $spec.resources.limits.cpu | quote }}
-                    readinessProbe:
-                      httpGet:
-                        path: /health
-                        port: 8000
-                      initialDelaySeconds: 5
-                      periodSeconds: 10
-                    livenessProbe:
-                      httpGet:
-                        path: /health
-                        port: 8000
-                      initialDelaySeconds: 15
-                      periodSeconds: 20
-            volumeClaimTemplates:
-              - meta
-                  name: data
-                spec:
-                  accessModes: ["ReadWriteOnce"]
-                  {{- if $spec.persistence.storageClass }}
-                  storageClassName: {{ $spec.persistence.storageClass | quote }}
-                  {{- end }}
-                  resources:
-                    requests:
-                      storage: {{ $spec.persistence.size | quote }}
+                        storage: {{ $spec.persistence.size | quote }}
 
-          ---
-          apiVersion: v1
-          kind: Service
-          metadata:
-            name: {{ $name }}-backupserver-svc
-            namespace: {{ $namespace | quote }}
-          spec:
-            clusterIP: None
-            selector:
-              app: {{ $name }}-backupserver-sts
+            ---
+            apiVersion: v1
+            kind: Service
+            metadata:
+              name: {{ $name }}-backupserver-svc
+              namespace: {{ $namespace | quote }}
+              annotations:
+                gotemplating.fn.crossplane.io/ready: "True"
+                gotemplating.fn.crossplane.io/composition-resource-name: {{ $name }}-backupserver-svc
+            spec:
+              clusterIP: None
+              selector:
+                app: {{ $name }}-backupserver-sts
 
-          ---
-          apiVersion: v1
-          kind: Service
-          meta
-            name: {{ $name }}-backupserver-svc-public
-            namespace: {{ $namespace | quote }}
-          spec:
-            type: {{ $spec.service.type }}
-            ports:
-              - port: 8000
-                targetPort: 8000
-                name: http
-            selector:
-              app: {{ $name }}-backupserver-sts
+            ---
+            apiVersion: v1
+            kind: Service
+            metadata:
+              name: {{ $name }}-backupserver-svc-public
+              namespace: {{ $namespace | quote }}
+              annotations:
+                gotemplating.fn.crossplane.io/ready: "True"
+                gotemplating.fn.crossplane.io/composition-resource-name: {{ $name }}-backupserver-svc-public
+            spec:
+              type: {{ $spec.service.type }}
+              ports:
+                - port: 8000
+                  targetPort: 8000
+                  name: http
+              selector:
+                app: {{ $name }}-backupserver-sts
 
-            # --- Ingress (conditionally) ---
-          {{- if $spec.ingress.enabled }}
-          ---
-          apiVersion: networking.k8s.io/v1
-          kind: Ingress
-          meta
-            name: {{ $name }}-backupserver-ingress
-            namespace: {{ $namespace | quote }}
-            {{- if or $spec.ingress.annotations $spec.ingress.className }}
-            annotations:
-              {{- if $spec.ingress.className }}
-              kubernetes.io/ingress.class: {{ $spec.ingress.className | quote }}
-              {{- end }}
-              {{- range $k, $v := $spec.ingress.annotations }}
-              {{ $k }}: {{ $v | quote }}
-              {{- end }}
-            {{- end }}
-          spec:
-            {{- if $spec.ingress.className }}
-            ingressClassName: {{ $spec.ingress.className | quote }}
-            {{- end }}
-            {{- if $spec.ingress.tlsSecretName }}
-            tls:
-              - hosts:
-                  - {{ $spec.ingress.host | quote }}
-                secretName: {{ $spec.ingress.tlsSecretName | quote }}
-            {{- end }}
-            rules:
-              - {{- if $spec.ingress.host }}
-                host: {{ $spec.ingress.host | quote }}
+            {{- if $spec.ingress.enabled }}
+            ---
+            apiVersion: networking.k8s.io/v1
+            kind: Ingress
+            metadata:
+              name: {{ $name }}-backupserver-ingress
+              namespace: {{ $namespace | quote }}
+              annotations:
+                gotemplating.fn.crossplane.io/ready: "True"
+                gotemplating.fn.crossplane.io/composition-resource-name: {{ $name }}-backupserver-ingress
+                {{- if $spec.ingress.className }}
+                kubernetes.io/ingress.class: {{ $spec.ingress.className | quote }}
                 {{- end }}
-                http:
-                  paths:
-                    - path: /
-                      pathType: Prefix
-                      backend:
-                        service:
-                          name: {{ $name }}-public
-                          port:
-                            number: 8000
+                {{- range $k, $v := $spec.ingress.annotations }}
+                {{ $k }}: {{ $v | quote }}
+                {{- end }}
+            spec:
+              {{- if $spec.ingress.className }}
+              ingressClassName: {{ $spec.ingress.className | quote }}
+              {{- end }}
+              {{- if $spec.ingress.tlsSecretName }}
+              tls:
+                - hosts:
+                    - {{ $spec.ingress.host | quote }}
+                  secretName: {{ $spec.ingress.tlsSecretName | quote }}
+              {{- end }}
+              rules:
+                - {{- if $spec.ingress.host }}
+                  host: {{ $spec.ingress.host | quote }}
+                  {{- end }}
+                  http:
+                    paths:
+                      - path: /
+                        pathType: Prefix
+                        backend:
+                          service:
+                            name: {{ $name }}-backupserver-svc-public
+                            port:
+                              number: 8000
             {{- end }}
 
     - step: automatically-detect-ready-composed-resources
       functionRef:
         name: crossplane-contrib-function-auto-ready 
 
-    - step: set-status-url
-      functionRef:
-        name: crossplane-contrib-function-go-templating
-      input:
-        apiVersion: gotemplating.fn.crossplane.io/v1beta1
-        kind: GoTemplate
-        source: Inline
-        inline: 
-          template: |
-              {{- if .observed.composite.resource.spec.ingress }}
-                {{- if .observed.resources }}
-                  {{- $key := printf "helmrelease-%s" .observed.composite.resource.metadata.name -}}
-                  {{- $hr := index .observed.resources $key | default nil -}}
-                  {{- if $hr }}
-                    {{- $ready := ($hr | getResourceCondition "Ready").Status | default "False" -}}
-                    {{- if eq $ready "True" }}
-                      {{- $protocol := "http" -}}
-                      {{- if and (.observed.composite.resource.spec.tls) (ne (len .observed.composite.resource.spec.tls) 0) -}}
-                        {{- $protocol = "https" -}}
-                      {{- end -}}
-              ---
-              apiVersion: apps.homystack.com/v1alpha1
-              kind: VaultWarden
-              status:
-                url: {{ quote (printf "%s://%s" $protocol .observed.composite.resource.spec.ingress.host) }}
-                    {{- end }}
-                  {{- end }}
-                {{- end }}
-              {{- end }}
+    # - step: set-status-url
+    #   functionRef:
+    #     name: crossplane-contrib-function-go-templating
+    #   input:
+    #     apiVersion: gotemplating.fn.crossplane.io/v1beta1
+    #     kind: GoTemplate
+    #     source: Inline
+    #     inline: 
+    #       template: |
+    #           {{- if .observed.composite.resource.spec.ingress }}
+    #             {{- if .observed.resources }}
+    #               {{- $key := printf "helmrelease-%s" .observed.composite.resource.metadata.name -}}
+    #               {{- $hr := index .observed.resources $key | default nil -}}
+    #               {{- if $hr }}
+    #                 {{- $ready := ($hr | getResourceCondition "Ready").Status | default "False" -}}
+    #                 {{- if eq $ready "True" }}
+    #                   {{- $protocol := "http" -}}
+    #                   {{- if and (.observed.composite.resource.spec.tls) (ne (len .observed.composite.resource.spec.tls) 0) -}}
+    #                     {{- $protocol = "https" -}}
+    #                   {{- end -}}
+    #           ---
+    #           apiVersion: apps.homystack.com/v1alpha1
+    #           kind: VaultWarden
+    #           status:
+    #             url: {{ quote (printf "%s://%s" $protocol .observed.composite.resource.spec.ingress.host) }}
+    #                 {{- end }}
+    #               {{- end }}
+    #             {{- end }}
+    #           {{- end }}

@@ -1,0 +1,34 @@
+# backupserver-example.yaml
+apiVersion: apps.homystack.com/v1alpha1
+kind: BackupServer
+metadata:
+  name: my-backup
+  namespace: default
+spec:
+  image: "restic/rest-server:0.14.0"
+  persistence:
+    enabled: true
+    size: "50Gi"
+    storageClass: "local-path"
+
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "200m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+  
+  service:
+    type: "LoadBalancer"
+
+  ingress:
+    enabled: true
+    host: "backup.example.com"
+    className: "nginx"
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+
+  config:
+    disableAuthentication: false
+    options: "--prometheus --debug"
