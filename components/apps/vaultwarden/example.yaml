@@ -31,10 +31,14 @@ spec:
   #     kind: "ClusterIssuer"
 
   # === Backup (K8up → S3) ===
-  # backup:
-  #   schedule: "0 2 * * *"  # каждый день в 2:00 UTC
-  #   retention: "7d"
-  #   backend: "s3"
+  backup:
+    schedule: "0 2 * * *"  # каждый день в 2:00 UTC
+    retention: "7d"
+    backend: "backupServer"
+    backupServer:
+        backupServerRef:
+          namespace: default
+          name: my-backup
   #   s3:
   #     endpoint: "https://s3.eu-west-1.amazonaws.com"
   #     bucket: "my-backups-vaultwarden"

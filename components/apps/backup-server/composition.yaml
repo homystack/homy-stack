@@ -27,23 +27,23 @@ spec:
             apiVersion: apps/v1
             kind: StatefulSet
             metadata:
-              name: {{ $name }}-backupserver-sts
+              name: {{ $name }}-backupserver
               namespace: {{ $namespace | quote }}
               annotations:
                 gotemplating.fn.crossplane.io/ready: "True"
                 gotemplating.fn.crossplane.io/composition-resource-name: {{ $name }}-backupserver-sts
-              labels:
-                app: {{ $name }}-backupserver-sts
+              labels: 
+                app: {{ $name }}-backupserver
             spec:
               serviceName: {{ $name }}-backupserver-svc
               replicas: 1
               selector:
                 matchLabels:
-                  app: {{ $name }}-backupserver-sts
+                  app: {{ $name }}-backupserver
               template:
                 metadata:
                   labels:
-                    app: {{ $name }}-backupserver-sts
+                    app: {{ $name }}-backupserver
                 spec:
                   {{- if $spec.nodeSelector }}
                   nodeSelector:
@@ -58,14 +58,35 @@ spec:
                       ports:
                         - containerPort: 8000
                           name: http
+                      {{- if $spec.config.disableAuthentication }}
                       env:
                         - name: DISABLE_AUTHENTICATION
-                          value: {{ printf "%t" $spec.config.disableAuthentication | quote }}
-                        - name: OPTIONS
-                          value: {{ $spec.config.options | quote }}
+                          value: "true"
+                      {{- end }}
+                      args:
+                        - "/entrypoint.sh"
+                        - "--path"
+                        - "/data"
+                        {{- if $spec.config.disableAuthentication }}
+                        - "--no-auth"
+                        {{- else }}
+                        - "--htpasswd-file"
+                        - "/data/.htpasswd"
+                        {{- end }}
+                        {{- if $spec.config.options }}
+                        {{- range $flag := splitList " " $spec.config.options }}
+                        - {{ $flag | quote }}
+                        {{- end }}
+                        {{- end }}
                       volumeMounts:
                         - name: data
                           mountPath: /data
+                        {{- if not $spec.config.disableAuthentication }}
+                        - name: htpasswd
+                          mountPath: /data/.htpasswd
+                          subPath: .htpasswd
+                          readOnly: true
+                        {{- end }}
                       resources:
                         requests:
                           memory: {{ $spec.resources.requests.memory | quote }}
@@ -73,6 +94,12 @@ spec:
                         limits:
                           memory: {{ $spec.resources.limits.memory | quote }}
                           cpu: {{ $spec.resources.limits.cpu | quote }}
+                  {{- if not $spec.config.disableAuthentication }}
+                  volumes:
+                    - name: htpasswd
+                      secret:
+                        secretName: {{ $name }}-backupserver-htpasswd
+                  {{- end }}
               volumeClaimTemplates:
                 - metadata:
                     name: data
@@ -89,7 +116,7 @@ spec:
             apiVersion: v1
             kind: Service
             metadata:
-              name: {{ $name }}-backupserver-svc
+              name: {{ $name }}-backupserver
               namespace: {{ $namespace | quote }}
               annotations:
                 gotemplating.fn.crossplane.io/ready: "True"
@@ -97,17 +124,17 @@ spec:
             spec:
               clusterIP: None
               selector:
-                app: {{ $name }}-backupserver-sts
+                app: {{ $name }}-backupserver
 
             ---
             apiVersion: v1
             kind: Service
             metadata:
-              name: {{ $name }}-backupserver-svc-public
+              name: {{ $name }}-backupserver-public
               namespace: {{ $namespace | quote }}
               annotations:
                 gotemplating.fn.crossplane.io/ready: "True"
-                gotemplating.fn.crossplane.io/composition-resource-name: {{ $name }}-backupserver-svc-public
+                gotemplating.fn.crossplane.io/composition-resource-name: {{ $name }}-backupserver-public-svc
             spec:
               type: {{ $spec.service.type }}
               ports:
@@ -115,14 +142,14 @@ spec:
                   targetPort: 8000
                   name: http
               selector:
-                app: {{ $name }}-backupserver-sts
+                app: {{ $name }}-backupserver
 
             {{- if $spec.ingress.enabled }}
             ---
             apiVersion: networking.k8s.io/v1
             kind: Ingress
             metadata:
-              name: {{ $name }}-backupserver-ingress
+              name: {{ $name }}-backupserver
               namespace: {{ $namespace | quote }}
               annotations:
                 gotemplating.fn.crossplane.io/ready: "True"
@@ -153,9 +180,165 @@ spec:
                         pathType: Prefix
                         backend:
                           service:
-                            name: {{ $name }}-backupserver-svc-public
+                            name: {{ $name }}-backupserver-public
                             port:
                               number: 8000
+            {{- end }}
+
+            ---
+    - step: generate-credentials
+      functionRef:
+        name: crossplane-contrib-function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{- $spec := .observed.composite.resource.spec -}}
+            {{- $name := .observed.composite.resource.metadata.name -}}
+            {{- $namespace := .observed.composite.resource.metadata.namespace | default "default" -}}
+
+            {{- $username := $spec.username | default "restic" -}}
+            {{- $password := $spec.password | default (randAlphaNum 16) -}}
+
+            # 1. Секрет с открытыми кредами (для отладки или передачи в другие компоненты)
+            ---
+            apiVersion: v1
+            kind: Secret
+            metadata:
+              name: {{ $name }}-backupserver-creds
+              namespace: {{ $namespace }}
+              annotations:
+                gotemplating.fn.crossplane.io/ready: "True"
+                gotemplating.fn.crossplane.io/composition-resource-name: {{ $name }}-backupserver-creds-secret
+            type: Opaque
+            stringData:
+              username: {{ $username }}
+              password: {{ $password }}
+
+            # 2. Секрет с .htpasswd файлом для rest-server
+            ---
+            apiVersion: v1
+            kind: Secret
+            metadata:
+              name: {{ $name }}-backupserver-htpasswd
+              namespace: {{ $namespace }}
+              annotations:
+                gotemplating.fn.crossplane.io/ready: "True"
+                gotemplating.fn.crossplane.io/composition-resource-name: {{ $name }}-backupserver-htpasswd-secret
+            type: Opaque
+            stringData:
+              .htpasswd: |
+                {{ htpasswd $username $password }}
+
+    - step: ui-for-rest-backend
+      functionRef:
+        name: crossplane-contrib-function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{- $spec := .observed.composite.resource.spec -}}
+            {{- $name := .observed.composite.resource.metadata.name -}}
+            {{- $namespace := .observed.composite.resource.metadata.namespace | default "default" -}}
+            {{- if $spec.ui }}
+            ---
+            apiVersion: apps/v1
+            kind: StatefulSet
+            metadata:
+              name: {{ $name }}-backupserver-ui
+              namespace: {{ $namespace | quote }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: {{ $name }}-ui-sts
+                gotemplating.fn.crossplane.io/ready: "True"
+              labels:
+                app: {{ $name }}-backupserver-ui
+            spec:
+              serviceName: {{ $name }}-backupserver-ui
+              replicas: 1
+              selector:
+                matchLabels:
+                  app: {{ $name }}-backupserver-ui
+              template:
+                metadata:
+                  labels:
+                    app: {{ $name }}-backupserver-ui
+                spec:
+                  containers:
+                    - name: backrest-backupserver-ui
+                      image: {{ $spec.ui.image | default "garethgeorge/backrest:latest" | quote }}
+                      imagePullPolicy: {{ $spec.ui.imagePullPolicy | default "Always" | quote }}
+                      ports:
+                        - containerPort: 9898
+                          name: http
+                      resources:
+                        requests:
+                          memory: {{ $spec.ui.resources.requests.memory | default "64Mi" | quote }}
+                          cpu: {{ $spec.ui.resources.requests.cpu | default "50m" | quote }}
+                        limits:
+                          memory: {{ $spec.ui.resources.limits.memory | default "128Mi" | quote }}
+                          cpu: {{ $spec.ui.resources.limits.cpu | default "100m" | quote }}
+                  restartPolicy: Always
+            ---
+            apiVersion: v1
+            kind: Service
+            metadata:
+              name: {{ $name }}-backupserver-ui
+              namespace: {{ $namespace | quote }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: {{ $name }}-ui-svc
+                gotemplating.fn.crossplane.io/ready: "True"
+
+              labels:
+                app: {{ $name }}-backupserver-ui
+            spec:
+              type: ClusterIP
+              ports:
+                - port: 9898
+                  targetPort: http
+                  protocol: TCP
+                  name: http
+              selector:
+                app: {{ $name }}-backupserver-ui
+            {{- if $spec.ui.ingress }}
+            ---
+            apiVersion: networking.k8s.io/v1
+            kind: Ingress
+            metadata:
+              name: {{ $name }}-backupserver-ui
+              namespace: {{ $namespace | quote }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: {{ $name }}-ui-ingress
+                gotemplating.fn.crossplane.io/ready: "True"
+                {{- range $k, $v := $spec.ui.ingress.annotations }}
+                {{ $k }}: {{ $v | quote }}
+                {{- end }}
+              labels:
+                app: {{ $name }}-backupserver-ui
+            spec:
+              rules:
+                - host: {{ $spec.ui.ingress.host | quote }}
+                  http:
+                    paths:
+                      - path: /
+                        pathType: Prefix
+                        backend:
+                          service:
+                            name: {{ $name }}-backupserver-ui
+                            port:
+                              number: 9898
+              {{- if $spec.ui.ingress.tls }}
+              tls:
+                - hosts:
+                    - {{ $spec.ui.ingress.host | quote }}
+                  {{- if $spec.ui.ingress.tls.secretName }}
+                  secretName: {{ $spec.ui.ingress.tls.secretName | quote }}
+                  {{- end }}
+              {{- end }}
+            {{- end }}
             {{- end }}
 
     - step: automatically-detect-ready-composed-resources

@@ -28,12 +28,12 @@ spec:
               apiVersion: helm.toolkit.fluxcd.io/v2
               kind: HelmRelease
               metadata:
-                name: helmrelease-{{ $name }}
+                name: {{ $name }}-vaultwarden
                 namespace: {{ $namespace }}
                 labels:
                   crossplane.io/composite: {{ $name }}
                 annotations:
-                  gotemplating.fn.crossplane.io/composition-resource-name: helmrelease-{{$name}}
+                  gotemplating.fn.crossplane.io/composition-resource-name: {{$name}}-vaultwarden-helmrelease
               spec:
                 interval: 10m
                 chart:
@@ -116,13 +116,12 @@ spec:
               apiVersion: cert-manager.io/v1
               kind: Certificate
               metadata:
-                name: certificate-{{ $name }}
+                name: {{ $name }}-vaultwarden
                 namespace: {{ $namespace }}
                 labels:
                   crossplane.io/composite: {{ $name }}
                 annotations:
-                  gotemplating.fn.crossplane.io/composition-resource-name: certificate-{{$name}}
-
+                  gotemplating.fn.crossplane.io/composition-resource-name: {{$name}}-vaultwarden-certificate s
               spec:
                 secretName: {{ default (printf "%s-tls" $name) $spec.ingress.tlsSecretName }}
                 issuerRef:
@@ -134,27 +133,35 @@ spec:
                 dnsNames:
                   - {{ $spec.ingress.host }}
               {{- end }}
+              
 
-              {{- if $spec.backup }}
+    - step: configure-backup-for-s3
+      functionRef:
+        name: crossplane-contrib-function-go-templating
+        input:
+          apiVersion: gotemplating.fn.crossplane.io/v1beta1
+          kind: GoTemplate
+          source: Inline
+          inline: 
+            template: |
+              {{- if and $spec.backup (eq $spec.backup.backend "s3") }}              
               # === K8up Backup Schedule ===
               ---
               apiVersion: k8up.io/v1
               kind: Schedule
               metadata:
-                name: backup-{{ $name }}
+                name: {{ $name }}-vaultwarden
                 namespace: {{ $namespace }}
                 labels:
                   crossplane.io/composite: {{ $name }}
                 annotations:
-                  gotemplating.fn.crossplane.io/composition-resource-name: backup-{{$name}}
-
+                  gotemplating.fn.crossplane.io/composition-resource-name: {{$name}}-vaultwarden-schedule
               spec:
                 schedule: {{ quote $spec.backup.schedule }}
                 backup:
                   retention:
                     keepJobs: 7
                     keepDaily: 7
-                  {{- if eq $spec.backup.backend "s3" }}
                   backend:
                     s3:
                       endpoint: {{ quote $spec.backup.s3.endpoint }}
@@ -166,19 +173,59 @@ spec:
                       secretKeySecret:
                         name: {{ quote $spec.backup.s3.secretKeySecret }}
                         key: secretkey
-                  {{- else if eq $spec.backup.backend "volume" }}
-                  backend:
-                    volume:
-                      volumeName: backup-volume
-                  {{- /* другие бэкенды можно добавить по аналогии */ -}}
-                  {{- end }}
                 # Бэкапим поды с нужным label (обычно Helm release ставит app.kubernetes.io/instance)
                 pod:
                   namespace: {{ $namespace }}
                   labels:
                     app.kubernetes.io/instance: {{ $name }}
               {{- end }}
-              
+
+    - step: configure-backup-for-backup-server
+      functionRef:
+        name: crossplane-contrib-function-go-templating
+        input:
+          apiVersion: gotemplating.fn.crossplane.io/v1beta1
+          kind: GoTemplate
+          source: Inline
+          inline: 
+            template: |
+              {{- if and $spec.backup (eq $spec.backup.backend "backupServer") }}              
+              # === K8up Backup Schedule ===
+              ---
+              apiVersion: k8up.io/v1
+              kind: Schedule
+              metadata:
+                name: {{ $name }}-vaultwarden
+                namespace: {{ $namespace }}
+                labels:
+                  crossplane.io/composite: {{ $name }}
+                annotations:
+                  gotemplating.fn.crossplane.io/composition-resource-name: {{$name}}-vaultwarden-schedule
+              spec:
+                schedule: {{ quote $spec.backup.schedule }}
+                backup:
+                  retention:
+                    keepJobs: 7
+                    keepDaily: 7
+                  rest:
+                    s3:
+                      endpoint: {{ quote $spec.backup.s3.endpoint }}
+                      bucket: {{ quote $spec.backup.s3.bucket }}
+                      region: {{ quote $spec.backup.s3.region }}
+                      accessKeySecret:
+                        name: {{ quote $spec.backup.s3.accessKeySecret }}
+                        key: accesskey
+                      secretKeySecret:
+                        name: {{ quote $spec.backup.s3.secretKeySecret }}
+                        key: secretkey
+                # Бэкапим поды с нужным label (обычно Helm release ставит app.kubernetes.io/instance)
+                pod:
+                  namespace: {{ $namespace }}
+                  labels:
+                    app.kubernetes.io/instance: {{ $name }}
+              {{- end }}
+
+
     - step: automatically-detect-ready-composed-resources
       functionRef:
         name: crossplane-contrib-function-auto-ready 

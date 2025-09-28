@@ -103,7 +103,7 @@ spec:
                       default: "ClusterIP"
                   required: ["type"]
 
-                # === Ingress ===
+                # === Ingress (for REST server, if needed) ===
                 ingress:
                   type: object
                   properties:
@@ -128,7 +128,7 @@ spec:
                       description: "Name of existing TLS secret"
                   required: ["enabled"]
 
-                # === Application Configuration ===
+                # === REST Server Config ===
                 config:
                   type: object
                   properties:
@@ -140,6 +140,72 @@ spec:
                       type: string
                       default: "--prometheus"
                       description: "Extra CLI flags for the server"
+                    username:
+                      type: string
+                      description: "Username for basic authentication (used when disableAuthentication is false)"
+                    password:
+                      type: string
+                      description: "Password for basic authentication (used when disableAuthentication is false)"
+                  required: []
+
+                # === UI Component (backrest) ===
+                ui:
+                  type: object
+                  nullable: true
+                  description: "Optional UI for restic backups (backrest)"
+                  properties:
+                    image:
+                      type: string
+                      default: "garethgeorge/backrest:latest"
+                    imagePullPolicy:
+                      type: string
+                      default: "Always"
+                      enum: ["Always", "IfNotPresent", "Never"]
+                    resources:
+                      type: object
+                      properties:
+                        requests:
+                          type: object
+                          properties:
+                            memory:
+                              type: string
+                              default: "64Mi"
+                            cpu:
+                              type: string
+                              default: "50m"
+                          required: ["memory", "cpu"]
+                        limits:
+                          type: object
+                          properties:
+                            memory:
+                              type: string
+                              default: "128Mi"
+                            cpu:
+                              type: string
+                              default: "100m"
+                          required: ["memory", "cpu"]
+                      required: ["requests", "limits"]
+                    ingress:
+                      type: object
+                      nullable: true
+                      properties:
+                        host:
+                          type: string
+                          description: "Hostname for UI ingress (e.g., backrest.example.com)"
+                        annotations:
+                          type: object
+                          additionalProperties:
+                            type: string
+                          default: {}
+                        tls:
+                          type: object
+                          nullable: true
+                          properties:
+                            secretName:
+                              type: string
+                              description: "Name of TLS secret for UI ingress"
+                          required: []
+                      required: ["host"]
                   required: []
 
               required:

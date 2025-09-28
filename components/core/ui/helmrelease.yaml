@@ -32,3 +32,23 @@ spec:
           paths:
             - path: /
               type: Prefix
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: headlamp-nodeport
+  namespace: homystack-headlamp
+  labels:
+    app.kubernetes.io/instance: headlamp
+    app.kubernetes.io/name: headlamp
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      nodePort: 30880  
+      protocol: TCP
+  selector:
+    app.kubernetes.io/instance: headlamp
+    app.kubernetes.io/name: headlamp
