@@ -1,0 +1,9 @@
+apiVersion: certs.homystack.com/v1alpha1
+kind: DuckDns
+metadata:
+  name: my-duckdns
+spec:
+  email: admin@example.com
+  token: "your-duckdns-token-here"
+  enableProduction: true
+  enableStaging: false

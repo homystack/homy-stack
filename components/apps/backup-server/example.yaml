@@ -30,10 +30,7 @@ spec:
       nginx.ingress.kubernetes.io/ssl-redirect: "true"
 
   config:
-    disableAuthentication: true
     options: "--prometheus --debug "
-    username: admin
-    password: "111"
 
   ui:
     ingress:

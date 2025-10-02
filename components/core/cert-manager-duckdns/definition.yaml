@@ -1,0 +1,57 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: duckdnses.certs.homystack.com
+spec:
+  group: certs.homystack.com
+  names:
+    kind: DuckDns
+    plural: duckdnses
+    singular: duckdns
+  scope: Cluster
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      additionalPrinterColumns:
+        - name: CLUSTER-ISSUER
+          type: string
+          jsonPath: .status.clusterIssuer
+          description: "Generated ClusterIssuer name"
+      schema:
+        openAPIV3Schema:
+          type: object
+          description: "DuckDns is a Crossplane Composite Resource that deploys and manages cert-manager-webhook-duckdns for DNS-01 challenges with DuckDNS."
+          properties:
+            spec:
+              type: object
+              description: "Specification of the desired behavior of the DuckDns instance."
+              properties:
+                email:
+                  type: string
+                  description: "Email address for Let's Encrypt certificate notifications and account registration."
+                  format: email
+                token:
+                  type: string
+                  description: "DuckDNS API token for DNS record management."
+                enableProduction:
+                  type: boolean
+                  default: true
+                  description: "Whether to enable the production ClusterIssuer for Let's Encrypt."
+                enableStaging:
+                  type: boolean
+                  default: false
+                  description: "Whether to enable the staging ClusterIssuer for Let's Encrypt (for testing)."
+              required:
+                - email
+                - token
+            status:
+              type: object
+              description: "Current observed state of the DuckDns instance."
+              properties:
+                clusterIssuer:
+                  type: string
+                  description: "Name of the generated ClusterIssuer for production certificates."
+                ready:
+                  type: boolean
+                  description: "Indicates whether the DuckDns deployment and all dependencies are ready and healthy."

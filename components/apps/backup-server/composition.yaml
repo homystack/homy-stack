@@ -58,21 +58,14 @@ spec:
                       ports:
                         - containerPort: 8000
                           name: http
-                      {{- if $spec.config.disableAuthentication }}
                       env:
                         - name: DISABLE_AUTHENTICATION
                           value: "true"
-                      {{- end }}
                       args:
                         - "/entrypoint.sh"
                         - "--path"
                         - "/data"
-                        {{- if $spec.config.disableAuthentication }}
                         - "--no-auth"
-                        {{- else }}
-                        - "--htpasswd-file"
-                        - "/data/.htpasswd"
-                        {{- end }}
                         {{- if $spec.config.options }}
                         {{- range $flag := splitList " " $spec.config.options }}
                         - {{ $flag | quote }}
@@ -81,12 +74,6 @@ spec:
                       volumeMounts:
                         - name: data
                           mountPath: /data
-                        {{- if not $spec.config.disableAuthentication }}
-                        - name: htpasswd
-                          mountPath: /data/.htpasswd
-                          subPath: .htpasswd
-                          readOnly: true
-                        {{- end }}
                       resources:
                         requests:
                           memory: {{ $spec.resources.requests.memory | quote }}
@@ -94,12 +81,6 @@ spec:
                         limits:
                           memory: {{ $spec.resources.limits.memory | quote }}
                           cpu: {{ $spec.resources.limits.cpu | quote }}
-                  {{- if not $spec.config.disableAuthentication }}
-                  volumes:
-                    - name: htpasswd
-                      secret:
-                        secretName: {{ $name }}-backupserver-htpasswd
-                  {{- end }}
               volumeClaimTemplates:
                 - metadata:
                     name: data
@@ -186,51 +167,6 @@ spec:
             {{- end }}
 
             ---
-    - step: generate-credentials
-      functionRef:
-        name: crossplane-contrib-function-go-templating
-      input:
-        apiVersion: gotemplating.fn.crossplane.io/v1beta1
-        kind: GoTemplate
-        source: Inline
-        inline:
-          template: |
-            {{- $spec := .observed.composite.resource.spec -}}
-            {{- $name := .observed.composite.resource.metadata.name -}}
-            {{- $namespace := .observed.composite.resource.metadata.namespace | default "default" -}}
-
-            {{- $username := $spec.username | default "restic" -}}
-            {{- $password := $spec.password | default (randAlphaNum 16) -}}
-
-            # 1. Секрет с открытыми кредами (для отладки или передачи в другие компоненты)
-            ---
-            apiVersion: v1
-            kind: Secret
-            metadata:
-              name: {{ $name }}-backupserver-creds
-              namespace: {{ $namespace }}
-              annotations:
-                gotemplating.fn.crossplane.io/ready: "True"
-                gotemplating.fn.crossplane.io/composition-resource-name: {{ $name }}-backupserver-creds-secret
-            type: Opaque
-            stringData:
-              username: {{ $username }}
-              password: {{ $password }}
-
-            # 2. Секрет с .htpasswd файлом для rest-server
-            ---
-            apiVersion: v1
-            kind: Secret
-            metadata:
-              name: {{ $name }}-backupserver-htpasswd
-              namespace: {{ $namespace }}
-              annotations:
-                gotemplating.fn.crossplane.io/ready: "True"
-                gotemplating.fn.crossplane.io/composition-resource-name: {{ $name }}-backupserver-htpasswd-secret
-            type: Opaque
-            stringData:
-              .htpasswd: |
-                {{ htpasswd $username $password }}
 
     - step: ui-for-rest-backend
       functionRef:

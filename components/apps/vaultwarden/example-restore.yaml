@@ -1,7 +1,7 @@
 apiVersion: apps.homystack.com/v1alpha1
 kind: VaultWarden
 metadata:
-  name: my-vault
+  name: my-vault-restored
   namespace: default
 spec:
   # === Persistence (обязательно для SQLite!) ===
@@ -38,7 +38,10 @@ spec:
     # === Примеры использования repoPassword ===
     # Вариант 1: Автоматическая генерация пароля (по умолчанию)
     repoPassword:
-       strategy: "generate"  # автоматически сгенерирует пароль
+       strategy: "existingSecret"  # автоматически сгенерирует пароль
+       secretRef:
+        name: my-vault-backup-password
+        key: password
     
     # Вариант 2: Прямая строка пароля
     # repoPassword:
@@ -56,7 +59,6 @@ spec:
         ref:
           namespace: default
           name: my-backup
-        repositoryName: my-vault-vaultwarden
   #   s3:
   #     endpoint: "https://s3.eu-west-1.amazonaws.com"
   #     bucket: "my-backups-vaultwarden"
@@ -81,36 +83,37 @@ spec:
       security: "starttls"
 
   # === Restore (опционально) ===
-  # restore:
-  #   backend: "backupServer"  # или "s3"
-  #   repoPassword:
-  #     strategy: "existingSecret"
-  #     secretRef:
-  #       name: "my-vault-backup-password"  # должен совпадать с паролем бэкапа
-  #       key: "password"
-  #   backupServer:
-  #     ref:
-  #       namespace: default
-  #       name: my-backup
-  #   # s3:
-  #   #   endpoint: "https://s3.eu-west-1.amazonaws.com"
-  #   #   bucket: "my-backups-vaultwarden"
-  #   #   region: "eu-west-1"
-  #   #   accessKeySecret: "vaultwarden-s3-accesskey"
-  #   #   secretKeySecret: "vaultwarden-s3-secretkey"
-  #   snapshot: "162e7a85acbc14de93dad31a3699331cb32187ff0d7bd2227b7c4362a1d13a42"  # ID конкретного снапшота
-  #   method: "folder"  # или "s3" для восстановления в S3
-  #   # pvcName: "my-vault-vaultwarden"  # опционально, по умолчанию генерируется как имяинстанса-vaultwarden
-  #   # Для восстановления в S3:
-  #   # restoreS3:
-  #   #   endpoint: "https://s3.eu-west-1.amazonaws.com"
-  #   #   bucket: "vaultwarden-restore-bucket"
-  #   #   accessKeySecret: "vaultwarden-s3-accesskey"
-  #   #   secretKeySecret: "vaultwarden-s3-secretkey"
-  #   # Для не-root пользователей:
-  #   # podSecurityContext:
-  #   #   fsGroup: 65532
-  #   #   fsGroupChangePolicy: "OnRootMismatch"
-  #   #   runAsUser: 65532
-  #   #   runAsGroup: 65532
-  #   #   runAsNonRoot: true
+  restore:
+    backend: "backupServer"  # или "s3"
+    repoPassword:
+      strategy: "existingSecret"
+      secretRef:
+        name: "my-vault-backup-password"  # должен совпадать с паролем бэкапа
+        key: "password"
+    backupServer:
+      ref:
+        namespace: default
+        name: my-backup
+      repositoryName: my-vault-vaultwarden
+    # s3:
+    #   endpoint: "https://s3.eu-west-1.amazonaws.com"
+    #   bucket: "my-backups-vaultwarden"
+    #   region: "eu-west-1"
+    #   accessKeySecret: "vaultwarden-s3-accesskey"
+    #   secretKeySecret: "vaultwarden-s3-secretkey"
+    snapshot: "5c5e7f8b"  # ID конкретного снапшота
+    method: "folder"  # или "s3" для восстановления в S3
+    # pvcName: "my-vault-vaultwarden"  # опционально, по умолчанию генерируется как имяинстанса-vaultwarden
+    # Для восстановления в S3:
+    # restoreS3:
+    #   endpoint: "https://s3.eu-west-1.amazonaws.com"
+    #   bucket: "vaultwarden-restore-bucket"
+    #   accessKeySecret: "vaultwarden-s3-accesskey"
+    #   secretKeySecret: "vaultwarden-s3-secretkey"
+    # Для не-root пользователей:
+    # podSecurityContext:
+    #   fsGroup: 65532
+    #   fsGroupChangePolicy: "OnRootMismatch"
+    #   runAsUser: 65532
+    #   runAsGroup: 65532
+    #   runAsNonRoot: true

@@ -177,10 +177,12 @@ spec:
                       name: {{ quote $spec.backup.s3.secretKeySecret }}
                       key: secretkey
               # Бэкапим поды с нужным label (обычно Helm release ставит app.kubernetes.io/instance)
-              pod:
-                namespace: {{ $namespace }}
-                labels:
-                  app.kubernetes.io/instance: {{ $name }}
+                labelSelectors:
+                  - matchExpressions:
+                    - key: helm.toolkit.fluxcd.io/name
+                      operator: In
+                      values:
+                        - {{$name}}-vaultwarden
             {{- end }}
 
     - step: configure-backup-for-backup-server
@@ -197,22 +199,54 @@ spec:
             {{- $spec := .observed.composite.resource.spec -}}
             
             {{- if and $spec.backup (eq $spec.backup.backend "backupServer") }}
-            ---
-            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
-            kind: ExtraResources
-            requirements:
-              backupServer:
-                apiVersion: {{ default "apps.homystack.com/v1alpha1" $spec.backup.backupServer.ref.apiVersion }}
-                kind: {{ default "BackupServer" $spec.backup.backupServer.ref.kind }}
-                matchName: {{ $spec.backup.backupServer.ref.name }}
-                {{- if $spec.backup.backupServer.ref.namespace }}
-                namespace: {{ $spec.backup.backupServer.ref.namespace }}
-                {{- end }}
-            
-            {{- $backupServer := getExtraResources . "backupServer" | first | default nil }}
-            {{- if $backupServer }}
             {{- $backupServerName := $spec.backup.backupServer.ref.name }}
             {{- $backupServerNamespace := default $namespace $spec.backup.backupServer.ref.namespace }}
+            {{- $repoName := $spec.backup.backupServer.repositoryName | default (printf "%s-vaultwarden" $name) }}
+            {{- $repoPassword := $spec.backup.repoPassword | default dict }}
+            {{- $strategy := $repoPassword.strategy | default "generate" }}
+            {{- $secretName := printf "%s-backup-password" $name }}
+            {{- $secretKey := "password" }}
+            {{- /* Case 1: Generate password automatically (with dig!) */}}
+            {{- if eq $strategy "generate" }}
+            # === Backup Password Secret (Auto-generated, stable) ===
+            ---
+            apiVersion: v1
+            kind: Secret
+            metadata:
+              name: {{ $secretName }}
+              namespace: {{ $namespace }}
+              labels:
+                crossplane.io/composite: {{ $name }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: {{ $name }}-backup-password
+            type: Opaque
+            data:
+              {{ $secretKey }}: {{ dig "resources" (printf "%s-backup-password" $name) "resource" "data" $secretKey (randAlphaNum 32 | b64enc) $.observed | quote }}
+            {{- end }}
+            
+            {{- /* Case 2: Use direct password string */}}
+            {{- if and (eq $strategy "direct") $repoPassword.password }}
+            # === Backup Password Secret (Direct string) ===
+            ---
+            apiVersion: v1
+            kind: Secret
+            metadata:
+              name: {{ $secretName }}
+              namespace: {{ $namespace }}
+              labels:
+                crossplane.io/composite: {{ $name }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: {{$name}}-backup-password-secret
+            type: Opaque
+            data:
+              {{ $secretKey }}: {{ $repoPassword.password | b64enc | quote }}
+            {{- end }}
+            
+            {{- /* Case 3: Use existing secret reference */}}
+            {{- if eq $strategy "existingSecret" }}
+            {{- $secretName = $repoPassword.secretRef.name }}
+            {{- $secretKey = $repoPassword.secretRef.key | default "password" }}
+            {{- end }}
             
             # === K8up Backup Schedule ===
             ---
@@ -226,28 +260,140 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: {{$name}}-vaultwarden-schedule
             spec:
-              schedule: {{ quote $spec.backup.schedule }}
-              backup:
+              backend:
+                repoPasswordSecretRef:
+                  name: {{ $secretName }}
+                  key: {{ $secretKey }}
+                rest:
+                  url: {{ printf "http://%s-backupserver.%s.svc.cluster.local:8000/%s" $backupServerName $backupServerNamespace $repoName }}
+              prune:
+                schedule: '0 1 * * 0'
                 retention:
-                  keepJobs: 7
-                  keepDaily: 7
-                backend:
-                  rest:
-                    url: {{ printf "http://%s-backup-server.%s.svc.cluster.local:8080" $backupServerName $backupServerNamespace }}
-                    userSecretRef:
-                      name: {{ printf "%s-backupserver-creds" $backupServerName }}
-                      key: username
-                    passwordSecretRef:
-                      name: {{ printf "%s-backupserver-creds" $backupServerName }}
-                      key: password
+                  keepLast: 5
+                  keepDaily: 14
+              backup:
+                schedule: {{ quote $spec.backup.schedule }}
               # Бэкапим поды с нужным label (обычно Helm release ставит app.kubernetes.io/instance)
-              pod:
-                namespace: {{ $namespace }}
-                labels:
-                  app.kubernetes.io/instance: {{ $name }}
-            {{- end }}
+                labelSelectors:
+                  - matchExpressions:
+                    - key: helm.toolkit.fluxcd.io/name
+                      operator: In
+                      values:
+                        - {{$name}}-vaultwarden
             {{- end }}
 
+    - step: configure-restore
+      functionRef:
+        name: crossplane-contrib-function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline: 
+          template: |
+            {{- $name := .observed.composite.resource.metadata.name -}}
+            {{- $namespace := .observed.composite.resource.metadata.namespace -}}
+            {{- $spec := .observed.composite.resource.spec -}}
+            
+            {{- if $spec.restore }}
+            {{- $restoreSpec := $spec.restore }}
+            
+            {{- /* Determine restore backend configuration */}}
+            {{- $backend := dict }}
+            {{- $secretName := "" }}
+            {{- $secretKey := "password" }}
+            
+            {{- /* Handle repoPassword for restore */}}
+            {{- $repoPassword := $restoreSpec.repoPassword | default dict }}
+            {{- $strategy := $repoPassword.strategy | default "existingSecret" }}
+            
+            {{- /* Case 1: Use direct password string */}}
+            {{- if and (eq $strategy "direct") $repoPassword.password }}
+            {{- $secretName = printf "%s-restore-password" $name }}
+            # === Restore Password Secret (Direct string) ===
+            ---
+            apiVersion: v1
+            kind: Secret
+            metadata:
+              name: {{ $secretName }}
+              namespace: {{ $namespace }}
+              labels:
+                crossplane.io/composite: {{ $name }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: {{$name}}-restore-password-secret
+            type: Opaque
+            data:
+              {{ $secretKey }}: {{ $repoPassword.password | b64enc | quote }}
+            {{- end }}
+            
+            {{- /* Case 2: Use existing secret reference */}}
+            {{- if eq $strategy "existingSecret" }}
+            {{- $secretName = $repoPassword.secretRef.name }}
+            {{- $secretKey = $repoPassword.secretRef.key | default "password" }}
+            {{- end }}
+            
+            {{- /* Configure backend based on restore.backend */}}
+            {{- if eq $restoreSpec.backend "s3" }}
+            {{- $backend = dict "s3" (dict
+              "endpoint" $restoreSpec.s3.endpoint
+              "bucket" $restoreSpec.s3.bucket
+              "accessKeyIDSecretRef" (dict "name" $restoreSpec.s3.accessKeySecret "key" "accesskey")
+              "secretAccessKeySecretRef" (dict "name" $restoreSpec.s3.secretKeySecret "key" "secretkey")
+            ) }}
+            {{- else if eq $restoreSpec.backend "backupServer" }}
+            {{- $backupServerName := $restoreSpec.backupServer.ref.name }}
+            {{- $backupServerNamespace := default $namespace $restoreSpec.backupServer.ref.namespace }}
+            {{- $repoName := $restoreSpec.backupServer.repositoryName }}
+            {{- $backend = dict "rest" (dict
+              "url" (printf "http://%s-backupserver.%s.svc.cluster.local:8000/%s" $backupServerName $backupServerNamespace $repoName)
+            ) }}
+            {{- end }}
+            
+            {{- /* Determine restore method */}}
+            {{- $restoreMethod := dict }}
+            {{- if eq $restoreSpec.method "folder" }}
+            {{- $pvcName := $restoreSpec.pvcName | default (printf "%s-vaultwarden" $name) }}
+            {{- $restoreMethod = dict "folder" (dict "claimName" $pvcName) }}
+            {{- else if eq $restoreSpec.method "s3" }}
+            {{- $restoreMethod = dict "s3" (dict
+              "endpoint" $restoreSpec.restoreS3.endpoint
+              "bucket" $restoreSpec.restoreS3.bucket
+              "accessKeyIDSecretRef" (dict "name" $restoreSpec.restoreS3.accessKeySecret "key" "accesskey")
+              "secretAccessKeySecretRef" (dict "name" $restoreSpec.restoreS3.secretKeySecret "key" "secretkey")
+            ) }}
+            {{- end }}
+            
+            # === K8up Restore Job ===
+            ---
+            apiVersion: k8up.io/v1
+            kind: Restore
+            metadata:
+              name: {{ $name }}-vaultwarden-restore
+              namespace: {{ $namespace }}
+              labels:
+                crossplane.io/composite: {{ $name }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: {{$name}}-vaultwarden-restore
+            spec:
+              {{- if $restoreSpec.snapshot }}
+              snapshot: {{ quote $restoreSpec.snapshot }}
+              {{- end }}
+              {{- if $restoreMethod }}
+              restoreMethod: {{ toYaml $restoreMethod | nindent 10 }}
+              {{- end }}
+              backend:
+                repoPasswordSecretRef:
+                  name: {{ $secretName }}
+                  key: {{ $secretKey }}
+                {{- if $backend.s3 }}
+                s3: {{ toYaml $backend.s3 | nindent 10 }}
+                {{- else if $backend.rest }}
+                rest: {{ toYaml $backend.rest | nindent 10 }}
+                {{- end }}
+              {{- if $restoreSpec.podSecurityContext }}
+              podSecurityContext: {{ toYaml $restoreSpec.podSecurityContext | nindent 10 }}
+              {{- end }}
+            {{- end }}
 
     - step: automatically-detect-ready-composed-resources
       functionRef:

@@ -132,20 +132,10 @@ spec:
                 config:
                   type: object
                   properties:
-                    disableAuthentication:
-                      type: boolean
-                      default: true
-                      description: "⚠️ Only for dev! Disables auth if true"
                     options:
                       type: string
                       default: "--prometheus"
                       description: "Extra CLI flags for the server"
-                    username:
-                      type: string
-                      description: "Username for basic authentication (used when disableAuthentication is false)"
-                    password:
-                      type: string
-                      description: "Password for basic authentication (used when disableAuthentication is false)"
                   required: []
 
                 # === UI Component (backrest) ===

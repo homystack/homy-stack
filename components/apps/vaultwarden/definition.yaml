@@ -114,7 +114,7 @@ spec:
                           description: "API group of the issuer (usually 'cert-manager.io')."
                 backup:
                   type: object
-                  description: "Backup configuration for Vaultwarden data using Velero or similar backup solutions."
+                  description: "Backup configuration for Vaultwarden data using K8up backup solution."
                   properties:
                     schedule:
                       type: string
@@ -129,6 +129,32 @@ spec:
                       enum: [s3, backupServer]
                       default: s3
                       description: "Backup storage backend type."
+                    repoPassword:
+                      type: object
+                      description: "Configuration for the restic repository password. Supports automatic generation, direct string, or existing secret reference."
+                      properties:
+                        strategy:
+                          type: string
+                          enum: [generate, direct, existingSecret]
+                          default: generate
+                          description: "Strategy for obtaining the repository password: 'generate' (auto-generate), 'direct' (use direct string), 'existingSecret' (reference existing secret)."
+                        password:
+                          type: string
+                          nullable: true
+                          description: "Direct password string (required if strategy is 'direct')."
+                        secretRef:
+                          type: object
+                          description: "Reference to an existing secret (required if strategy is 'existingSecret')."
+                          properties:
+                            name:
+                              type: string
+                              description: "Name of the existing secret."
+                            key:
+                              type: string
+                              default: password
+                              description: "Key in the secret containing the password."
+                          required:
+                            - name
                     backupServer:
                       type: object
                       description: "Reference to an existing BackupServer custom resource (required if backend is 'backupServer')."
@@ -153,6 +179,11 @@ spec:
                               description: "Namespace of the BackupServer resource (optional if cluster-scoped)."
                           required:
                             - name
+                        repositoryName:
+                          type: string
+                          description: "Name of the repository in the backup server. Defaults to the instance name with '-vaultwarden' suffix in the composition."
+                      required:
+                        - ref
                     s3:
                       type: object
                       description: "S3-compatible storage configuration for backups (required if backend is 's3')."
@@ -172,6 +203,139 @@ spec:
                         secretKeySecret:
                           type: string
                           description: "Name of a Kubernetes Secret containing the S3 secret key (key: 'secretkey')."
+                restore:
+                  type: object
+                  description: "Restore configuration for Vaultwarden data from existing backups. When this section is present, a one-time restore job will be created."
+                  properties:
+                    backend:
+                      type: string
+                      enum: [s3, backupServer]
+                      default: s3
+                      description: "Restore storage backend type."
+                    repoPassword:
+                      type: object
+                      description: "Configuration for the restic repository password. Must match the password used for backup."
+                      properties:
+                        strategy:
+                          type: string
+                          enum: [direct, existingSecret]
+                          default: existingSecret
+                          description: "Strategy for obtaining the repository password: 'direct' (use direct string), 'existingSecret' (reference existing secret)."
+                        password:
+                          type: string
+                          nullable: true
+                          description: "Direct password string (required if strategy is 'direct')."
+                        secretRef:
+                          type: object
+                          description: "Reference to an existing secret (required if strategy is 'existingSecret')."
+                          properties:
+                            name:
+                              type: string
+                              description: "Name of the existing secret containing the backup password."
+                            key:
+                              type: string
+                              default: password
+                              description: "Key in the secret containing the password."
+                          required:
+                            - name
+                    backupServer:
+                      type: object
+                      description: "Reference to an existing BackupServer custom resource (required if backend is 'backupServer')."
+                      properties:
+                        ref:
+                          type: object
+                          description: "Reference to a BackupServer resource."
+                          properties:
+                            apiVersion:
+                              type: string
+                              default: "apps.homystack.com/v1alpha1"
+                              description: "API version of the BackupServer resource."
+                            kind:
+                              type: string
+                              default: "BackupServer"
+                              description: "Kind of the resource (always BackupServer)."
+                            name:
+                              type: string
+                              description: "Name of the BackupServer resource."
+                            namespace:
+                              type: string
+                              description: "Namespace of the BackupServer resource (optional if cluster-scoped)."
+                          required:
+                            - name
+                        repositoryName:
+                          type: string
+                          description: "Name of the repository in the backup server. Required for restore operations."
+                      required:
+                        - ref
+                        - repositoryName
+                    s3:
+                      type: object
+                      description: "S3-compatible storage configuration for restore (required if backend is 's3')."
+                      properties:
+                        endpoint:
+                          type: string
+                          description: "S3 service endpoint (e.g., 'https://s3.amazonaws.com' or a MinIO URL)."
+                        bucket:
+                          type: string
+                          description: "Name of the S3 bucket to restore from."
+                        region:
+                          type: string
+                          description: "AWS region of the S3 bucket (if applicable)."
+                        accessKeySecret:
+                          type: string
+                          description: "Name of a Kubernetes Secret containing the S3 access key (key: 'accesskey')."
+                        secretKeySecret:
+                          type: string
+                          description: "Name of a Kubernetes Secret containing the S3 secret key (key: 'secretkey')."
+                    snapshot:
+                      type: string
+                      nullable: true
+                      description: "Specific snapshot ID to restore from. If not specified, the latest snapshot will be used."
+                    method:
+                      type: string
+                      enum: [folder, s3]
+                      default: folder
+                      description: "Restore destination method: 'folder' (to PVC) or 's3' (to S3 bucket)."
+                    pvcName:
+                      type: string
+                      nullable: true
+                      description: "Name of the PVC to restore data to (required if method is 'folder')."
+                    restoreS3:
+                      type: object
+                      description: "S3 destination configuration for restore (required if method is 's3')."
+                      properties:
+                        endpoint:
+                          type: string
+                          description: "S3 service endpoint for restore destination."
+                        bucket:
+                          type: string
+                          description: "S3 bucket name for restore destination."
+                        accessKeySecret:
+                          type: string
+                          description: "Name of a Kubernetes Secret containing the S3 access key for restore destination."
+                        secretKeySecret:
+                          type: string
+                          description: "Name of a Kubernetes Secret containing the S3 secret key for restore destination."
+                    podSecurityContext:
+                      type: object
+                      description: "Pod security context for the restore job, useful for non-root user scenarios."
+                      properties:
+                        fsGroup:
+                          type: integer
+                          description: "Filesystem group ID for the restore pod."
+                        fsGroupChangePolicy:
+                          type: string
+                          enum: [OnRootMismatch, Always]
+                          description: "Filesystem group change policy."
+                        runAsUser:
+                          type: integer
+                          description: "User ID to run the restore pod as."
+                        runAsGroup:
+                          type: integer
+                          description: "Group ID to run the restore pod as."
+                        runAsNonRoot:
+                          type: boolean
+                          description: "Whether to run the restore pod as non-root user."
                 config:
                   type: object
                   description: "Runtime configuration for Vaultwarden via environment variables."

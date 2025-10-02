@@ -1,0 +1,90 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: duckdnses.certs.homystack.com
+  labels:
+    certs.homystack.com/composition: duckdns
+spec:
+  compositeTypeRef:
+    apiVersion: certs.homystack.com/v1alpha1
+    kind: DuckDns
+
+  mode: Pipeline
+  pipeline:
+    - step: render-resources
+      functionRef:
+        name: crossplane-contrib-function-go-templating 
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{- $name := .observed.composite.resource.metadata.name -}}
+            {{- $spec := .observed.composite.resource.spec -}}
+            
+            # === HelmRelease for cert-manager-webhook-duckdns ===
+            ---
+            apiVersion: helm.toolkit.fluxcd.io/v2
+            kind: HelmRelease
+            metadata:
+              name: {{ $name }}-duckdns
+              namespace: homystack-cert-manager
+              labels:
+                crossplane.io/composite: {{ $name }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: {{$name}}-duckdns-helmrelease
+            spec:
+              interval: 15m
+              timeout: 5m
+              chart:
+                spec:
+                  chart: cert-manager-webhook-duckdns
+                  version: "*"
+                  sourceRef:
+                    kind: HelmRepository
+                    name: cert-manager-webhook-duckdns
+                    namespace: flux-system
+              values:
+                nameOverride: {{ $name }}
+                certManager:
+                  namespace: homystack-cert-manager
+                  serviceAccountName: cert-manager
+                duckdns:
+                  token: {{ quote $spec.token }}
+                clusterIssuer:
+                  email: {{ quote $spec.email }}
+                  production:
+                    create: {{ $spec.enableProduction }}
+                  staging:
+                    create: {{ $spec.enableStaging }}
+                logLevel: 2
+
+    - step: automatically-detect-ready-composed-resources
+      functionRef:
+        name: crossplane-contrib-function-auto-ready 
+
+    - step: set-status-cluster-issuer
+      functionRef:
+        name: crossplane-contrib-function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline: 
+          template: |
+            {{- if .observed.resources }}
+              {{- $name := .observed.composite.resource.metadata.name -}}
+              {{- $key := printf "%s-duckdns-helmrelease" $name -}}
+              {{- $hr := index .observed.resources $key | default nil -}}
+              {{- if $hr }}
+                {{- $ready := ($hr | getResourceCondition "Ready").Status | default "False" -}}
+                {{- if eq $ready "True" }}
+            ---
+            apiVersion: certs.homystack.com/v1alpha1
+            kind: DuckDns
+            status:
+              clusterIssuer: {{ printf "%s-duckdns-production" $name | quote }}
+                {{- end }}
+              {{- end }}
+            {{- end }}
