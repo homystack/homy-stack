@@ -18,8 +18,8 @@ hoMYstack currently covers three core use cases:
 
 | Service | Function |
 |--------|---------|
-| [`VaultWarden`](./examples/vaultwarden.yaml) | Password management with automatic TLS and backups |
-| [`Restic Backup Server`](./examples/restic-server.yaml) | Centralized, encrypted storage for backups |
+| [`VaultWarden`](./components/apps/vaultwarden/README.md) | Password management with automatic TLS and backups |
+| [`Backup Server`](./components/apps/backup-server/README.md) | Centralized, encrypted storage for backups |
 | [`Samba Share`](./examples/samba.yaml) | Simple file access from any device |
 
 All components:
