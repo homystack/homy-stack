@@ -36,7 +36,7 @@ spec:
     retention: "7d"
     backend: "backupServer"
     backupServer:
-        backupServerRef:
+        ref:
           namespace: default
           name: my-backup
   #   s3:

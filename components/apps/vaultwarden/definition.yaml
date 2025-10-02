@@ -126,9 +126,33 @@ spec:
                       description: "Retention policy for backups (e.g., '7d' for 7 days, '4w' for 4 weeks)."
                     backend:
                       type: string
-                      enum: [s3, gcs, azure, volume]
+                      enum: [s3, backupServer]
                       default: s3
                       description: "Backup storage backend type."
+                    backupServer:
+                      type: object
+                      description: "Reference to an existing BackupServer custom resource (required if backend is 'backupServer')."
+                      properties:
+                        ref:
+                          type: object
+                          description: "Reference to a BackupServer resource."
+                          properties:
+                            apiVersion:
+                              type: string
+                              default: "apps.homystack.com/v1alpha1"
+                              description: "API version of the BackupServer resource."
+                            kind:
+                              type: string
+                              default: "BackupServer"
+                              description: "Kind of the resource (always BackupServer)."
+                            name:
+                              type: string
+                              description: "Name of the BackupServer resource."
+                            namespace:
+                              type: string
+                              description: "Namespace of the BackupServer resource (optional if cluster-scoped)."
+                          required:
+                            - name
                     s3:
                       type: object
                       description: "S3-compatible storage configuration for backups (required if backend is 's3')."
