@@ -5,3 +5,5 @@ kind: Kustomization
 
 resources:
   - ../../components/core
+  - ../../components/apps/backup-server
+  - ../../components/apps/vaultwarden
