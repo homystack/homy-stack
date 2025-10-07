@@ -11,3 +11,5 @@ resources:
   - ./metallb
   - ./crossplane
   - ./cert-manager
+  - ./cert-manager-duckdns
+
