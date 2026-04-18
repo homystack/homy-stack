@@ -1,0 +1,61 @@
+{{- $existingSecret := lookup "v1" "Secret" .Release.Namespace (printf "%s-rcon" .Release.Name) }}
+{{- $rconPassword := randAlphaNum 24 }}
+{{- if $existingSecret }}
+  {{- $rconPassword = index $existingSecret.data "rcon-password" | b64dec }}
+{{- end }}
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Release.Name }}-rcon
+stringData:
+  rcon-password: {{ $rconPassword | quote }}
+
+---
+
+apiVersion: mc.k8s.lex.la/v1beta1
+kind: PaperMCServer
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  updateStrategy: {{ .Values.updateStrategy }}
+  {{- if .Values.version }}
+  version: {{ .Values.version | quote }}
+  {{- end }}
+  updateSchedule:
+    checkCron: {{ .Values.checkCron | quote }}
+    maintenanceWindow:
+      enabled: true
+      cron: "*/5 * * * *"
+  gracefulShutdown:
+    timeout: 30s
+  rcon:
+    enabled: true
+    passwordSecret:
+      name: {{ .Release.Name }}-rcon
+      key: rcon-password
+  service:
+    type: {{ .Values.serviceType }}
+  {{- if .Values.backupEnabled }}
+  backup:
+    enabled: true
+    schedule: {{ .Values.backupSchedule | quote }}
+    beforeUpdate: true
+    retention:
+      maxCount: {{ .Values.backupRetention }}
+  {{- end }}
+  podTemplate:
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: papermc
+          resources:
+            requests:
+              memory: {{ .Values.memoryLimit | quote }}
+              cpu: {{ .Values.cpuLimit | quote }}
+            limits:
+              memory: {{ .Values.memoryLimit | quote }}
+              cpu: {{ .Values.cpuLimit | quote }}

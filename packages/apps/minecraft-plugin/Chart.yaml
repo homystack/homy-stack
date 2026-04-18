@@ -1,0 +1,6 @@
+apiVersion: v2
+name: minecraft-plugin
+description: Managed Minecraft plugin with automatic version management
+type: application
+version: 0.0.0
+appVersion: "1.0.0"

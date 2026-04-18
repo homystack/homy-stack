@@ -1,0 +1,69 @@
+{
+  "title": "Minecraft Server",
+  "type": "object",
+  "properties": {
+    "updateStrategy": {
+      "description": "Update strategy for Paper version.",
+      "type": "string",
+      "enum": ["latest", "auto", "pin", "build-pin"],
+      "default": "latest"
+    },
+    "version": {
+      "description": "Target Minecraft version (required for pin/build-pin).",
+      "type": "string",
+      "default": ""
+    },
+    "memoryLimit": {
+      "description": "Memory limit for the server container.",
+      "type": "string",
+      "default": "2Gi"
+    },
+    "cpuLimit": {
+      "description": "CPU limit for the server container.",
+      "type": "string",
+      "default": "2000m"
+    },
+    "serviceType": {
+      "description": "Service type (LoadBalancer, NodePort, ClusterIP).",
+      "type": "string",
+      "enum": ["LoadBalancer", "NodePort", "ClusterIP"],
+      "default": "LoadBalancer"
+    },
+    "backupEnabled": {
+      "description": "Enable VolumeSnapshot-based backups.",
+      "type": "boolean",
+      "default": false
+    },
+    "backupSchedule": {
+      "description": "Cron schedule for periodic backups.",
+      "type": "string",
+      "default": "0 */6 * * *"
+    },
+    "backupRetention": {
+      "description": "Maximum number of backup snapshots to keep.",
+      "type": "integer",
+      "default": 10
+    },
+    "checkCron": {
+      "description": "Cron schedule for checking updates.",
+      "type": "string",
+      "default": "0 */4 * * *"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "updateStrategy": { "enum": ["pin", "build-pin"] }
+        },
+        "required": ["updateStrategy"]
+      },
+      "then": {
+        "properties": {
+          "version": { "minLength": 1 }
+        },
+        "required": ["version"]
+      }
+    }
+  ]
+}

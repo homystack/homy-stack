@@ -1,0 +1,26 @@
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmChart
+metadata:
+  name: external-apps-minecraft-server
+  namespace: cozy-public
+spec:
+  interval: 5m
+  chart: ./packages/apps/minecraft-server
+  sourceRef:
+    kind: GitRepository
+    name: external-apps
+  reconcileStrategy: Revision
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmChart
+metadata:
+  name: external-apps-minecraft-plugin
+  namespace: cozy-public
+spec:
+  interval: 5m
+  chart: ./packages/apps/minecraft-plugin
+  sourceRef:
+    kind: GitRepository
+    name: external-apps
+  reconcileStrategy: Revision

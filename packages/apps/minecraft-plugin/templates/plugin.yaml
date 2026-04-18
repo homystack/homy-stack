@@ -1,0 +1,39 @@
+apiVersion: mc.k8s.lex.la/v1beta1
+kind: Plugin
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  source:
+    type: {{ .Values.sourceType }}
+    {{- if eq .Values.sourceType "hangar" }}
+    project: {{ .Values.project | quote }}
+    {{- end }}
+    {{- if eq .Values.sourceType "url" }}
+    url: {{ .Values.url | quote }}
+    {{- if .Values.checksum }}
+    checksum: {{ .Values.checksum | quote }}
+    {{- end }}
+    {{- end }}
+  updateStrategy: {{ .Values.updateStrategy }}
+  {{- if .Values.version }}
+  version: {{ .Values.version | quote }}
+  {{- end }}
+  instanceSelector:
+    {{- if .Values.instanceSelector.matchLabels }}
+    matchLabels:
+      {{- range $key, $value := .Values.instanceSelector.matchLabels }}
+      {{ $key }}: {{ $value | quote }}
+      {{- end }}
+    {{- else }}
+    matchLabels: {}
+    {{- end }}
+  {{- if .Values.endpoints }}
+  endpoints:
+    {{- range .Values.endpoints }}
+    - name: {{ .name | quote }}
+      port: {{ .port }}
+      {{- if .protocol }}
+      protocol: {{ .protocol }}
+      {{- end }}
+    {{- end }}
+  {{- end }}

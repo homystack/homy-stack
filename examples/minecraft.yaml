@@ -1,0 +1,28 @@
+---
+apiVersion: apps.cozystack.io/v1alpha1
+kind: MinecraftServer
+metadata:
+  name: survival
+  namespace: tenant-root
+spec:
+  updateStrategy: latest
+  memoryLimit: 2Gi
+  cpuLimit: 2000m
+  serviceType: NodePort
+---
+apiVersion: apps.cozystack.io/v1alpha1
+kind: MinecraftPlugin
+metadata:
+  name: bluemap
+  namespace: tenant-root
+spec:
+  sourceType: hangar
+  project: BlueMap
+  updateStrategy: latest
+  instanceSelector:
+    matchLabels:
+      app.kubernetes.io/instance: minecraft-survival
+  endpoints:
+    - name: web
+      port: 8100
+      protocol: HTTP

@@ -1,0 +1,35 @@
+## @section Server configuration
+
+## @param {string} updateStrategy=latest - Update strategy for Paper version.
+## Valid values: latest, auto, pin, build-pin.
+updateStrategy: latest
+
+## @param {string} version="" - Target Minecraft version (required for pin/build-pin).
+version: ""
+
+## @param {string} memoryLimit=2Gi - Memory limit for the server container.
+memoryLimit: 2Gi
+
+## @param {string} cpuLimit=2000m - CPU limit for the server container.
+cpuLimit: "2000m"
+
+## @section Service configuration
+
+## @param {string} serviceType=LoadBalancer - Service type (LoadBalancer, NodePort, ClusterIP).
+serviceType: LoadBalancer
+
+## @section Backup configuration
+
+## @param {boolean} backupEnabled=false - Enable VolumeSnapshot-based backups.
+backupEnabled: false
+
+## @param {string} backupSchedule=0 */6 * * * - Cron schedule for periodic backups.
+backupSchedule: "0 */6 * * *"
+
+## @param {int} backupRetention=10 - Maximum number of backup snapshots to keep.
+backupRetention: 10
+
+## @section Update schedule
+
+## @param {string} checkCron=0 */4 * * * - Cron schedule for checking updates.
+checkCron: "0 */4 * * *"

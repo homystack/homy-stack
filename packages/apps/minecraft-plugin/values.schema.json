@@ -1,0 +1,121 @@
+{
+  "title": "Minecraft Plugin",
+  "type": "object",
+  "properties": {
+    "sourceType": {
+      "description": "Plugin source type.",
+      "type": "string",
+      "enum": ["hangar", "url"]
+    },
+    "project": {
+      "description": "Plugin project identifier on Hangar (e.g., BlueMap).",
+      "type": "string",
+      "default": ""
+    },
+    "url": {
+      "description": "Direct download URL (for sourceType: url).",
+      "type": "string",
+      "default": ""
+    },
+    "checksum": {
+      "description": "SHA256 hash of the JAR file (for sourceType: url).",
+      "type": "string",
+      "default": ""
+    },
+    "updateStrategy": {
+      "description": "Update strategy (latest, auto, pin, build-pin).",
+      "type": "string",
+      "enum": ["latest", "auto", "pin", "build-pin"],
+      "default": "latest"
+    },
+    "version": {
+      "description": "Target plugin version (required for pin/build-pin).",
+      "type": "string",
+      "default": ""
+    },
+    "instanceSelector": {
+      "description": "Label selector to match PaperMCServer instances.",
+      "type": "object",
+      "default": {},
+      "properties": {
+        "matchLabels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "endpoints": {
+      "description": "Network endpoints exposed by this plugin.",
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Endpoint name (DNS label).",
+            "type": "string"
+          },
+          "port": {
+            "description": "TCP/UDP port number.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "protocol": {
+            "description": "Protocol (TCP, UDP, HTTP).",
+            "type": "string",
+            "enum": ["TCP", "UDP", "HTTP"],
+            "default": "TCP"
+          }
+        },
+        "required": ["name", "port"]
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "sourceType": { "const": "hangar" }
+        },
+        "required": ["sourceType"]
+      },
+      "then": {
+        "properties": {
+          "project": { "minLength": 1 }
+        },
+        "required": ["project"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "sourceType": { "const": "url" }
+        },
+        "required": ["sourceType"]
+      },
+      "then": {
+        "properties": {
+          "url": { "minLength": 1 }
+        },
+        "required": ["url"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "updateStrategy": { "enum": ["pin", "build-pin"] }
+        },
+        "required": ["updateStrategy"]
+      },
+      "then": {
+        "properties": {
+          "version": { "minLength": 1 }
+        },
+        "required": ["version"]
+      }
+    }
+  ]
+}

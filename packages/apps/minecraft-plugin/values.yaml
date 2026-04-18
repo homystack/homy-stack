@@ -1,0 +1,33 @@
+## @section Plugin source
+
+## @param {string} sourceType="" - Plugin source type (hangar or url). Required at install time.
+## No default here: a default would conflict with the conditional validation
+## below (hangar requires non-empty project). Cozystack dashboard pre-fills
+## sourceType via openAPISchema default in the ApplicationDefinition.
+
+## @param {string} project="" - Plugin project identifier on Hangar (e.g., BlueMap).
+project: ""
+
+## @param {string} url="" - Direct download URL (for sourceType: url).
+url: ""
+
+## @param {string} checksum="" - SHA256 hash of the JAR file (for sourceType: url).
+checksum: ""
+
+## @section Version management
+
+## @param {string} updateStrategy=latest - Update strategy (latest, auto, pin, build-pin).
+updateStrategy: latest
+
+## @param {string} version="" - Target plugin version (required for pin/build-pin).
+version: ""
+
+## @section Instance selector
+
+## @param {object} instanceSelector={} - Label selector to match PaperMCServer instances.
+instanceSelector: {}
+
+## @section Network endpoints
+
+## @param {array} endpoints=[] - Network endpoints exposed by this plugin.
+endpoints: []

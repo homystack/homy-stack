@@ -1,0 +1,6 @@
+apiVersion: v2
+name: minecraft-server
+description: Managed PaperMC Minecraft server with automatic updates and plugin management
+type: application
+version: 0.0.0
+appVersion: "1.0.0"
