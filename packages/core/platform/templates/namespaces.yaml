@@ -4,11 +4,4 @@ kind: Namespace
 metadata:
   labels:
     cozystack.io/system: "true"
-  name: external-minecraft-operator
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  labels:
-    cozystack.io/system: "true"
   name: external-gitea
