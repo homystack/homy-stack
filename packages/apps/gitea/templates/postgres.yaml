@@ -1,0 +1,23 @@
+---
+apiVersion: apps.cozystack.io/v1alpha1
+kind: Postgres
+metadata:
+  name: {{ .Release.Name }}-db
+  namespace: {{ .Release.Namespace }}
+spec:
+  size: {{ .Values.database.size }}
+  replicas: {{ .Values.database.replicas }}
+  external: false
+  {{- with .Values.storageClass }}
+  storageClass: {{ . }}
+  {{- end }}
+  users:
+    {{ .Values.database.user }}:
+      {{- with .Values.database.password }}
+      password: {{ . | quote }}
+      {{- end }}
+  databases:
+    {{ .Values.database.name }}:
+      roles:
+        admin:
+          - {{ .Values.database.user }}

@@ -1,0 +1,16 @@
+{{- if .Values.redis.enabled }}
+---
+apiVersion: apps.cozystack.io/v1alpha1
+kind: Redis
+metadata:
+  name: {{ .Release.Name }}-redis
+  namespace: {{ .Release.Namespace }}
+spec:
+  size: {{ .Values.redis.size }}
+  replicas: {{ .Values.redis.replicas }}
+  external: false
+  authEnabled: true
+  {{- with .Values.storageClass }}
+  storageClass: {{ . }}
+  {{- end }}
+{{- end }}

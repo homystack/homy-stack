@@ -1,0 +1,88 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: gitea
+      version: 12.5.3
+      sourceRef:
+        kind: HelmRepository
+        name: gitea
+        namespace: external-gitea
+  dependsOn:
+    - name: postgres-{{ .Release.Name }}-db
+    {{- if .Values.redis.enabled }}
+    - name: redis-{{ .Release.Name }}-redis
+    {{- end }}
+  values:
+    postgresql: { enabled: false }
+    postgresql-ha: { enabled: false }
+    valkey: { enabled: false }
+    valkey-cluster: { enabled: false }
+
+    persistence:
+      enabled: true
+      size: {{ .Values.storage.size }}
+      {{- with .Values.storageClass }}
+      storageClass: {{ . }}
+      {{- end }}
+
+    {{- if .Values.host }}
+    ingress:
+      enabled: true
+      hosts:
+        - host: {{ .Values.host | quote }}
+          paths:
+            - path: /
+              pathType: Prefix
+    {{- end }}
+
+    service:
+      ssh:
+        type: {{ ternary "LoadBalancer" "ClusterIP" .Values.ssh.enabled }}
+
+    gitea:
+      admin:
+        username: {{ .Values.admin.username | quote }}
+        email: {{ .Values.admin.email | quote }}
+        {{- with .Values.admin.password }}
+        password: {{ . | quote }}
+        {{- end }}
+      config:
+        database:
+          DB_TYPE: postgres
+          HOST: postgres-{{ .Release.Name }}-db-rw:5432
+          NAME: {{ .Values.database.name | quote }}
+          USER: {{ .Values.database.user | quote }}
+      {{- if .Values.redis.enabled }}
+      additionalConfigFromEnvs:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-{{ .Release.Name }}-redis-auth
+              key: password
+        - name: GITEA__CACHE__ENABLED
+          value: "true"
+        - name: GITEA__CACHE__ADAPTER
+          value: "redis"
+        - name: GITEA__CACHE__HOST
+          value: "redis+sentinel://:$(REDIS_PASSWORD)@rfs-redis-{{ .Release.Name }}-redis:26379/0?master=mymaster"
+        - name: GITEA__SESSION__PROVIDER
+          value: "redis"
+        - name: GITEA__SESSION__PROVIDER_CONFIG
+          value: "redis+sentinel://:$(REDIS_PASSWORD)@rfs-redis-{{ .Release.Name }}-redis:26379/0?master=mymaster"
+        - name: GITEA__QUEUE__TYPE
+          value: "redis"
+        - name: GITEA__QUEUE__CONN_STR
+          value: "redis+sentinel://:$(REDIS_PASSWORD)@rfs-redis-{{ .Release.Name }}-redis:26379/0?master=mymaster"
+      {{- end }}
+  valuesFrom:
+    - kind: Secret
+      name: postgres-{{ .Release.Name }}-db-credentials
+      valuesKey: {{ .Values.database.user }}
+      targetPath: gitea.config.database.PASSWD

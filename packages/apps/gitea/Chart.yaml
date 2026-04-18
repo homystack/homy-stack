@@ -1,0 +1,7 @@
+apiVersion: v2
+name: gitea
+description: A Helm chart for Gitea on Cozystack
+type: application
+version: 0.0.1
+appVersion: "1.25.5"
+icon: /logos/gitea.svg

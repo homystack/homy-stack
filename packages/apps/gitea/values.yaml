@@ -1,0 +1,80 @@
+##
+## @section Common parameters
+##
+
+## @param {string} [host] - External hostname for the Gitea HTTP ingress. When empty the upstream chart does not create an Ingress.
+host: ""
+
+## @param {string} [storageClass] - StorageClass used by the Gitea repository PVC and by the Postgres and Redis sibling CRs.
+storageClass: ""
+
+##
+## @section Repository storage
+##
+
+## @typedef {struct} Storage - Persistent Volume Claim configuration for Gitea repositories.
+## @field {quantity} size - Persistent Volume Claim size for repository storage.
+
+## @param {Storage} storage - Gitea repository PVC configuration.
+storage:
+  size: 10Gi
+
+##
+## @section Admin user
+##
+
+## @typedef {struct} Admin - Gitea admin user configuration.
+## @field {string} username - Admin username.
+## @field {string} email - Admin email.
+## @field {string} [password] - Optional password. When empty, the upstream chart autogenerates one.
+
+## @param {Admin} admin - Gitea admin user configuration.
+admin:
+  username: gitea_admin
+  email: gitea@local
+  password: ""
+
+##
+## @section SSH access
+##
+
+## @typedef {struct} SSH - Gitea SSH service configuration.
+## @field {bool} enabled - Expose SSH on port 22 via a dedicated Service.
+
+## @param {SSH} ssh - Gitea SSH service configuration.
+ssh:
+  enabled: false
+
+##
+## @section Database configuration (managed via the cozystack `Postgres` sibling CR)
+##
+
+## @typedef {struct} Database - PostgreSQL configuration provisioned through a cozystack `Postgres` sibling CR.
+## @field {quantity} size - Persistent Volume size for database storage.
+## @field {int} replicas - Number of PostgreSQL replicas.
+## @field {string} user - Database user to create.
+## @field {string} name - Database name to create.
+## @field {string} [password] - Optional password. When empty, the cozystack postgres chart generates one and preserves it via `lookup`.
+
+## @param {Database} database - PostgreSQL database configuration.
+database:
+  size: 10Gi
+  replicas: 2
+  user: gitea
+  name: gitea
+  password: ""
+
+##
+## @section Redis configuration (optional, managed via the cozystack `Redis` sibling CR)
+##
+
+## @typedef {struct} Redis - Redis configuration provisioned through a cozystack `Redis` sibling CR. When disabled, Gitea falls back to in-memory session and cache and level-based queue, which is not recommended for production.
+## @field {bool} enabled - Enable the managed Redis sibling CR. When false, no Redis is provisioned and Gitea uses memory and level defaults.
+## @field {quantity} size - Persistent Volume size for Redis storage.
+## @field {int} replicas - Number of Redis replicas.
+
+## @param {Redis} redis - Redis configuration.
+redis:
+  enabled: true
+  size: 1Gi
+  replicas: 2

@@ -102,3 +102,52 @@ spec:
         - instanceSelector
       - - spec
         - endpoints
+---
+apiVersion: cozystack.io/v1alpha1
+kind: ApplicationDefinition
+metadata:
+  name: gitea
+spec:
+  application:
+    kind: Gitea
+    plural: giteas
+    singular: gitea
+    openAPISchema: '{"title":"Chart Values","type":"object","properties":{"host":{"description":"External hostname for the Gitea HTTP ingress. When empty the upstream chart does not create an Ingress.","type":"string","default":""},"storageClass":{"description":"StorageClass used by the Gitea repository PVC and by the Postgres and Redis sibling CRs.","type":"string","default":""},"storage":{"description":"Gitea repository PVC configuration.","type":"object","default":{},"required":["size"],"properties":{"size":{"description":"Persistent Volume Claim size for repository storage.","default":"10Gi","pattern":"^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$","anyOf":[{"type":"integer"},{"type":"string"}],"x-kubernetes-int-or-string":true}}},"admin":{"description":"Gitea admin user configuration.","type":"object","default":{},"required":["email","username"],"properties":{"email":{"description":"Admin email.","type":"string","default":"gitea@local"},"password":{"description":"Optional password. When empty, the upstream chart autogenerates one.","type":"string","default":""},"username":{"description":"Admin username.","type":"string","default":"gitea_admin"}}},"ssh":{"description":"Gitea SSH service configuration.","type":"object","default":{},"required":["enabled"],"properties":{"enabled":{"description":"Expose SSH on port 22 via a dedicated Service.","type":"boolean","default":false}}},"database":{"description":"PostgreSQL database configuration.","type":"object","default":{},"required":["name","replicas","size","user"],"properties":{"name":{"description":"Database name to create.","type":"string","default":"gitea"},"password":{"description":"Optional password. When empty, the cozystack postgres chart generates one and preserves it via `lookup`.","type":"string","default":""},"replicas":{"description":"Number of PostgreSQL replicas.","type":"integer","default":2},"size":{"description":"Persistent Volume size for database storage.","default":"10Gi","pattern":"^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$","anyOf":[{"type":"integer"},{"type":"string"}],"x-kubernetes-int-or-string":true},"user":{"description":"Database user to create.","type":"string","default":"gitea"}}},"redis":{"description":"Redis configuration.","type":"object","default":{},"required":["enabled","replicas","size"],"properties":{"enabled":{"description":"Enable the managed Redis sibling CR. When false, no Redis is provisioned and Gitea uses memory and level defaults.","type":"boolean","default":true},"replicas":{"description":"Number of Redis replicas.","type":"integer","default":2},"size":{"description":"Persistent Volume size for Redis storage.","default":"1Gi","pattern":"^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$","anyOf":[{"type":"integer"},{"type":"string"}],"x-kubernetes-int-or-string":true}}}}}'
+  release:
+    chartRef:
+      kind: HelmChart
+      name: external-apps-gitea
+      namespace: cozy-public
+    labels:
+      cozystack.io/ui: "true"
+    prefix: gitea-
+  dashboard:
+    category: Development
+    singular: Gitea
+    plural: Giteas
+    description: Self-hosted Git service with PostgreSQL and optional Redis backends.
+    tags:
+      - git
+      - vcs
+      - scm
+    icon: PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiIgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIGZpbGw9IiM2MDk5MjYiLz48dGV4dCB4PSIxNiIgeT0iMjIiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+RzwvdGV4dD48L3N2Zz4K
+    keysOrder:
+      - - apiVersion
+      - - kind
+      - - metadata
+      - - metadata
+        - name
+      - - spec
+        - host
+      - - spec
+        - storageClass
+      - - spec
+        - storage
+      - - spec
+        - admin
+      - - spec
+        - ssh
+      - - spec
+        - database
+      - - spec
+        - redis
