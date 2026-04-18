@@ -7,9 +7,9 @@ metadata:
 spec:
   interval: 1m0s
   ref:
-    branch: main
+    branch: v2
   timeout: 60s
-  url: https://github.com/cozystack/external-apps-example.git
+  url: https://github.com/homystack/homy-stack.git
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
