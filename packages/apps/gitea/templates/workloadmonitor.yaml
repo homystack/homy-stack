@@ -1,0 +1,13 @@
+---
+apiVersion: cozystack.io/v1alpha1
+kind: WorkloadMonitor
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  replicas: 1
+  minReplicas: 1
+  kind: gitea
+  type: gitea
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}-app
+  version: {{ .Chart.Version }}

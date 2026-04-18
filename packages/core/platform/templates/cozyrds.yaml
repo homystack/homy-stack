@@ -17,6 +17,18 @@ spec:
     labels:
       cozystack.io/ui: "true"
     prefix: gitea-
+  secrets:
+    exclude: []
+    include:
+      - resourceNames:
+          - gitea-{{ .name }}-app
+          - postgres-gitea-{{ .name }}-db-credentials
+          - redis-gitea-{{ .name }}-redis-auth
+  services:
+    exclude: []
+    include:
+      - resourceNames:
+          - gitea-{{ .name }}-app-http
   dashboard:
     category: Development
     singular: Gitea
