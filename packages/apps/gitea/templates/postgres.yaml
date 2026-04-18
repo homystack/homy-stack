@@ -12,10 +12,12 @@ spec:
   storageClass: {{ . }}
   {{- end }}
   users:
+    {{- if .Values.database.password }}
     {{ .Values.database.user }}:
-      {{- with .Values.database.password }}
-      password: {{ . | quote }}
-      {{- end }}
+      password: {{ .Values.database.password | quote }}
+    {{- else }}
+    {{ .Values.database.user }}: {}
+    {{- end }}
   databases:
     {{ .Values.database.name }}:
       roles:
