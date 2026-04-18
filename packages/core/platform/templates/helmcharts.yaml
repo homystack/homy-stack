@@ -2,12 +2,12 @@
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmChart
 metadata:
-  name: external-apps-gitea
+  name: homy-stack-gitea
   namespace: cozy-public
 spec:
   interval: 5m
   chart: ./packages/apps/gitea
   sourceRef:
     kind: GitRepository
-    name: external-apps
+    name: homy-stack
   reconcileStrategy: Revision

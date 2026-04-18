@@ -12,7 +12,7 @@ spec:
   release:
     chartRef:
       kind: HelmChart
-      name: external-apps-gitea
+      name: homy-stack-gitea
       namespace: cozy-public
     labels:
       cozystack.io/ui: "true"
