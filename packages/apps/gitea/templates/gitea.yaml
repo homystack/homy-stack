@@ -35,6 +35,7 @@ spec:
     {{- if .Values.host }}
     ingress:
       enabled: true
+      className: {{ .Release.Namespace }}
       hosts:
         - host: {{ .Values.host | quote }}
           paths:
