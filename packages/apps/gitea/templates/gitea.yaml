@@ -4,6 +4,10 @@ kind: HelmRelease
 metadata:
   name: {{ .Release.Name }}-app
   namespace: {{ .Release.Namespace }}
+  labels:
+    apps.cozystack.io/application.group: apps.cozystack.io
+    apps.cozystack.io/application.kind: Gitea
+    apps.cozystack.io/application.name: {{ trimPrefix "gitea-" .Release.Name }}
 spec:
   interval: 5m
   chart:
