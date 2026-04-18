@@ -71,15 +71,15 @@ spec:
         - name: GITEA__CACHE__ADAPTER
           value: "redis"
         - name: GITEA__CACHE__HOST
-          value: "redis+sentinel://:$(REDIS_PASSWORD)@rfs-redis-{{ .Release.Name }}-redis:26379/0?master=mymaster"
+          value: "redis+sentinel://:$(REDIS_PASSWORD)@rfs-redis-{{ .Release.Name }}-redis:26379/0?mastername=mymaster"
         - name: GITEA__SESSION__PROVIDER
           value: "redis"
         - name: GITEA__SESSION__PROVIDER_CONFIG
-          value: "redis+sentinel://:$(REDIS_PASSWORD)@rfs-redis-{{ .Release.Name }}-redis:26379/0?master=mymaster"
+          value: "redis+sentinel://:$(REDIS_PASSWORD)@rfs-redis-{{ .Release.Name }}-redis:26379/0?mastername=mymaster"
         - name: GITEA__QUEUE__TYPE
           value: "redis"
         - name: GITEA__QUEUE__CONN_STR
-          value: "redis+sentinel://:$(REDIS_PASSWORD)@rfs-redis-{{ .Release.Name }}-redis:26379/0?master=mymaster"
+          value: "redis+sentinel://:$(REDIS_PASSWORD)@rfs-redis-{{ .Release.Name }}-redis:26379/0?mastername=mymaster"
       {{- end }}
   valuesFrom:
     - kind: Secret
