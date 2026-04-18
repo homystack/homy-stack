@@ -21,7 +21,7 @@ spec:
     exclude: []
     include:
       - resourceNames:
-          - gitea-{{ `{{ .name }}` }}-app
+          - gitea-{{ `{{ .name }}` }}-admin
           - postgres-gitea-{{ `{{ .name }}` }}-db-credentials
           - redis-gitea-{{ `{{ .name }}` }}-redis-auth
   services:

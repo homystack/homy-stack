@@ -49,11 +49,8 @@ spec:
 
     gitea:
       admin:
-        username: {{ .Values.admin.username | quote }}
+        existingSecret: {{ .Release.Name }}-admin
         email: {{ .Values.admin.email | quote }}
-        {{- with .Values.admin.password }}
-        password: {{ . | quote }}
-        {{- end }}
       config:
         database:
           DB_TYPE: postgres
