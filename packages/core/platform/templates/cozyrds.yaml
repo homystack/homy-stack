@@ -21,14 +21,14 @@ spec:
     exclude: []
     include:
       - resourceNames:
-          - gitea-{{ .name }}-app
-          - postgres-gitea-{{ .name }}-db-credentials
-          - redis-gitea-{{ .name }}-redis-auth
+          - gitea-{{ `{{ .name }}` }}-app
+          - postgres-gitea-{{ `{{ .name }}` }}-db-credentials
+          - redis-gitea-{{ `{{ .name }}` }}-redis-auth
   services:
     exclude: []
     include:
       - resourceNames:
-          - gitea-{{ .name }}-app-http
+          - gitea-{{ `{{ .name }}` }}-app-http
   dashboard:
     category: Development
     singular: Gitea
